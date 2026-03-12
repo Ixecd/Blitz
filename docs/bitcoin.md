@@ -59,3 +59,9 @@ typically selling with 2GB of RAM as of 2008, and Moore's Law predicting current
 memory
 也就是保守说，现实生活中每隔10分钟，就能有一个新人与我共振！
 
+- PoW chain timestamp strengthening.
+- Tx sig flow: priv sign txhash, pub verify.
+- Velocity = tx turnover, utility proxy.
+- UTXO pruned storage ~10GB global.
+- Fresh key anti pre-mine DS.
+
