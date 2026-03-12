@@ -1,0 +1,9 @@
+[general]
+ignore = ["TITLE_CONVENTIONAL_COMMITS_EXTRA_TYPES"]
+
+[title-conventional-commits]
+regex = ^((Merge (branch|pull request).*?)|((revert: )?(feat|fix|perf|style|build|refactor|test|ci|docs|chore)(\([a-zA-Z0-9-]+\))?!?: .+[^.]))$
+max-length = 120
+
+[body]
+max-length-line = 120

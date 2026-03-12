@@ -1,0 +1,4 @@
+components:
+  - name: web3-blitz
+    port: 8080
+    image: web3-blitz
