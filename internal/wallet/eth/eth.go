@@ -17,22 +17,30 @@ func NewETHWallet(hd *core.HDWallet) *ETHWallet {
 	return &ETHWallet{hdWallet: hd}
 }
 
-// GenerateDepositAddress 生成真实 ETH 充值地址
+// GenerateDepositAddress 生成真实 ETH 充值地址（BIP44）
 func (w *ETHWallet) GenerateDepositAddress(ctx context.Context, userID string, chain types.Chain) (types.AddressResponse, error) {
+	// 使用 userID 生成 index（简单哈希转 uint32）
 	index := uint32(0)
-	child, err := w.hdWallet.MasterKey.NewChildKey(index)
+	for _, c := range userID {
+		index = index*31 + uint32(c)
+	}
+
+	path := fmt.Sprintf("m/44'/60'/0'/0/%d", index)
+
+	// 真实派生
+	childKey, err := w.hdWallet.DerivePath(path)
 	if err != nil {
 		return types.AddressResponse{}, err
 	}
 
-	privKey, err := crypto.ToECDSA(child.Key)
+	// ETH 地址生成（私钥 → 公钥 → 地址）
+	privKeyBytes := childKey.Key
+	privKey, err := crypto.ToECDSA(privKeyBytes)
 	if err != nil {
 		return types.AddressResponse{}, err
 	}
 
 	address := crypto.PubkeyToAddress(privKey.PublicKey)
-
-	path := fmt.Sprintf("m/44'/60'/0'/0/%d", index)
 
 	return types.AddressResponse{
 		Address: address.Hex(),
@@ -41,7 +49,9 @@ func (w *ETHWallet) GenerateDepositAddress(ctx context.Context, userID string, c
 	}, nil
 }
 
+// GetBalance 查询余额（后面接真实 RPC）
 func (w *ETHWallet) GetBalance(ctx context.Context, address string, chain types.Chain) (types.BalanceResponse, error) {
+	// TODO: 后面接真实 RPC
 	return types.BalanceResponse{
 		Address: address,
 		Balance: 0.0,
