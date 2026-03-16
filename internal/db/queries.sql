@@ -1,0 +1,24 @@
+-- name: CreateDeposit :exec
+INSERT INTO deposits (tx_id, address, user_id, amount, height, confirmed, chain)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+-- name: GetDepositByTxID :one
+SELECT * FROM deposits WHERE tx_id = ? LIMIT 1;
+
+-- name: ListUnconfirmedDeposits :many
+SELECT * FROM deposits 
+WHERE confirmed = 0 
+ORDER BY height ASC;
+
+-- name: CreateDepositAddress :exec
+INSERT INTO deposit_addresses (user_id, address, chain, path)
+VALUES (?, ?, ?, ?);
+
+-- name: GetAddressByAddress :one
+SELECT * FROM deposit_addresses WHERE address = ? LIMIT 1;
+
+-- name: ListAddressesByUserID :many
+SELECT * FROM deposit_addresses WHERE user_id = ? ORDER BY created_at ASC;
+
+-- name: ListAllDepositAddresses :many
+SELECT * FROM deposit_addresses ORDER BY created_at ASC;

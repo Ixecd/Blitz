@@ -108,3 +108,38 @@ bitcoin-cli -regtest getdescriptorinfo "addr(bcrt1q你的真实地址)"
 ```
 生成地址 → 存到你自己的数据库(address -> userID)
 Deposit Watcher → 订阅新块 → 遍历交易outputs → 匹配数据库里的地址 → 入账
+
+第一阶段：基础设施初始化
+ctx, cancel          // 生命周期控制，最先建
+↓
+hdWallet             // 密钥体系，其他所有钱包操作的根基
+↓
+DB                   // 持久化层，基础设施
+↓
+queries              // DB操作句柄
+第二阶段：状态恢复
+registry             // 先建空的registry
+↓
+从DB恢复地址到registry  // 用queries填充registry，服务重启不丢状态
+第三阶段：外部连接
+btcRPC               // 连Bitcoin Core
+↓
+ethRPC               // 连Geth
+第四阶段：业务组件
+btcWallet            // 依赖hdWallet + btcRPC + registry + queries
+↓
+ethWallet            // 依赖hdWallet + ethRPC
+↓
+watcher              // 依赖btcRPC + registry
+第五阶段：HTTP层
+注册所有路由到mux     // address / balance / metrics
+第六阶段：启动异步任务
+go watcher.Start(ctx)          // 开始扫块
+go 消费deposits写DB             // 处理入账
+第七阶段：启动服务
+信号处理goroutine    // 监听SIGINT/SIGTERM
+srv.ListenAndServe  // 开始接收请求
+<-ctx.Done()        // 等待退出信号
+
+
+核心原则就三条：基础设施先于业务，状态恢复先于外部连接，异步任务先于HTTP服务。

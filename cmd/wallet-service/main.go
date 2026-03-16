@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/Ixecd/web3-blitz/internal/db"
 	"github.com/Ixecd/web3-blitz/internal/wallet/btc"
 	"github.com/Ixecd/web3-blitz/internal/wallet/core"
 	"github.com/Ixecd/web3-blitz/internal/wallet/eth"
@@ -28,16 +29,40 @@ var (
 
 func main() {
 	prometheus.MustRegister(walletAddressesTotal)
-
+	// 生命周期控制，最先创建
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// ✅ 正确调用（无参数，从环境变量读取）
+	// 密钥体系，其他所有钱包操作的根基
 	hdWallet, err := core.NewHDWallet()
 	if err != nil {
 		log.Fatal("HDWallet 初始化失败:", err)
 	}
 
-	// 创建真实 RPC 客户端
+	// 持久层，基础设施
+	database, err := db.NewDB("./blitz.db")
+	if err != nil {
+		log.Fatal("DB初始化失败:", err)
+	}
+
+	// DB操作句柄
+	queries := db.New(database)
+	log.Println("✅ 数据库已连接")
+
+	// 先创建空的registry
+	registry := btc.NewAddressRegistry()
+
+	// 用queries填充registry，服务重启不丢状态
+	addrs, err := queries.ListAllDepositAddresses(context.Background())
+	if err != nil {
+		log.Printf("[WARN] 恢复registry失败: %v", err)
+	} else {
+		for _, a := range addrs {
+			registry.Register(a.Address, a.UserID)
+		}
+		log.Printf("✅ 从DB恢复了 %d 个充值地址", len(addrs))
+	}
+
+	// 创建真实 RPC 客户端，外部连接
 	btcCfg := &rpcclient.ConnConfig{
 		Host:         "localhost:18443/wallet/blitz_wallet",
 		User:         "user",
@@ -45,20 +70,19 @@ func main() {
 		HTTPPostMode: true,
 		DisableTLS:   true,
 	}
-	btcRPC, _ := rpcclient.New(btcCfg, nil)
 
+	btcRPC, _ := rpcclient.New(btcCfg, nil)
 	ethRPC, _ := ethclient.Dial("http://localhost:8545")
 
-	registry := btc.NewAddressRegistry()
-
-	btcWallet := btc.NewBTCWallet(hdWallet, btcRPC, registry)
+	// 业务组件
+	btcWallet := btc.NewBTCWallet(hdWallet, btcRPC, registry, queries)
 	ethWallet := eth.NewETHWallet(hdWallet, ethRPC)
 
 	log.Println("🚀 Wallet Core 服务已启动（真实 RPC 已连接）")
 
 	watcher := btc.NewDepositWatcher(btcRPC, registry)
 
-	// === HTTP API ===
+	// 注册所有路由到mux，address、balance、metrics
 	mux := http.NewServeMux()
 
 	mux.Handle("/metrics", promhttp.Handler())
@@ -105,15 +129,6 @@ func main() {
 		json.NewEncoder(w).Encode(resp)
 	})
 
-	go watcher.Start(ctx)
-
-	go func() {
-		for deposit := range watcher.Deposits() {
-			log.Printf("📥 入账处理: %+v", deposit)
-			// TODO: 写数据库
-		}
-	}()
-
 	// 余额查询接口（真实查询）
 	mux.HandleFunc("/api/v1/balance", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -149,11 +164,37 @@ func main() {
 		json.NewEncoder(w).Encode(resp)
 	})
 
+	// 开始扫块
+	go watcher.Start(ctx)
+
+	// 消费deposits写DB
+	go func() {
+		for deposit := range watcher.Deposits() {
+			log.Printf("📥 入账处理: %+v", deposit)
+			// TODO: 写数据库
+			err := queries.CreateDeposit(context.Background(), db.CreateDepositParams{
+				TxID:      deposit.TxID,
+				Address:   deposit.Address,
+				UserID:    deposit.UserID,
+				Amount:    deposit.Amount,
+				Height:    int64(deposit.Height),
+				Confirmed: 1,
+				Chain:     string(deposit.Chain),
+			})
+			if err != nil {
+				log.Printf("[ERROR] 写入deposit失败: %v", err)
+			} else {
+				log.Printf("✅ deposit已写入DB: txid=%s", deposit.TxID)
+			}
+		}
+	}()
+
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
 	srv := &http.Server{Addr: ":2113", Handler: mux}
 
+	// 信号处理goroutine
 	go func() {
 		<-sig
 		log.Println("⛔ 收到关闭信号，正在优雅关闭...")
@@ -163,9 +204,12 @@ func main() {
 
 	log.Println("📡 API 服务已启动: http://localhost:2113")
 	log.Println(`测试余额: curl "http://localhost:2113/api/v1/balance?address=你的地址&chain=btc"`)
-	
+
+	// 开始接受请求
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
+
+	// 等待退出信号
 	<-ctx.Done()
 }
