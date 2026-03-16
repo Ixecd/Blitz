@@ -1,43 +1,52 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: mysql
+  bitcoind:
+    image: qingchun22/bitcoind-regtest:latest
+    container_name: bitcoind
     restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: test
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     ports:
-      - "3306:3306"
+      - "18443:18443"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - bitcoind-data:/home/bitcoin/.bitcoin
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-regtest", "-rpcuser=user", "-rpcpassword=pass", "getblockchaininfo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  redis:
-    image: redis:7.0
-    container_name: redis
+  geth:
+    image: ethereum/client-go:latest
+    container_name: geth
     restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    command:
+      - --dev
+      - --http
+      - --http.addr=0.0.0.0
+      - --http.port=8545
+      - --http.api=eth,net,web3,personal,miner
+      - --dev.period=5
     ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
+      - "8545:8545"
 
-  mongodb:
-    image: mongo:7.0
-    container_name: mongodb
+  wallet-service:
+    build:
+      context: .
+      dockerfile: build/docker/wallet-service/Dockerfile
+    container_name: wallet-service
     restart: always
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    depends_on:
+      bitcoind:
+        condition: service_healthy
+      geth:
+        condition: service_started
     ports:
-      - "27017:27017"
+      - "2113:2113"
+    environment:
+      - WALLET_HD_SEED=${WALLET_HD_SEED}
     volumes:
-      - mongo-data:/data/db
+      - wallet-data:/app/data
 
 volumes:
-  mysql-data:
-  redis-data:
-  mongo-data:
+  bitcoind-data:
+  wallet-data:
