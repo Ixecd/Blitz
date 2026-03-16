@@ -1,11 +1,24 @@
-FROM BASE_IMAGE
+# syntax=docker/dockerfile:1.7
+FROM golang:1.23-alpine AS builder
+
+ARG SERVICE_NAME=wallet-service
 
 WORKDIR /app
 
-COPY wallet-service /app/wallet-service
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN chmod +x /app/wallet-service
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/${SERVICE_NAME} ./cmd/${SERVICE_NAME}
+
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /app
+
+COPY --from=builder /app/bin/wallet-service /app/bin/
 
 EXPOSE 2113
 
-CMD ["/app/wallet-service"]
+CMD ["/app/bin/wallet-service"]
