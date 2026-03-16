@@ -28,25 +28,21 @@ var (
 func main() {
 	prometheus.MustRegister(walletAddressesTotal)
 
-	hdWallet, _ := core.NewHDWallet([]byte("test-seed-for-dev-only-1234567890"))
+	hdWallet, err := core.NewHDWallet()
+	if err != nil {
+		log.Fatal("HDWallet 初始化失败:", err)
+	}
+
 	btcWallet := btc.NewBTCWallet(hdWallet)
 	ethWallet := eth.NewETHWallet(hdWallet)
 
 	log.Println("🚀 Wallet Core 服务已启动")
 
-	// 测试地址
-	btcResp, _ := btcWallet.GenerateDepositAddress(context.Background(), "test001", types.ChainBTC)
-	ethResp, _ := ethWallet.GenerateDepositAddress(context.Background(), "test001", types.ChainETH)
-	log.Printf("✅ 测试 BTC 地址: %s", btcResp.Address)
-	log.Printf("✅ 测试 ETH 地址: %s", ethResp.Address)
-
-	// HTTP Server
-	srv := &http.Server{Addr: ":2113"}
-
-	// API 路由
+	// === HTTP API（带参数验证 + 日志 + 错误处理）===
 	http.HandleFunc("/api/v1/address", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+			log.Printf("[ERROR] 不支持的请求方法: %s", r.Method)
+			http.Error(w, "只支持 POST 请求", http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -55,46 +51,55 @@ func main() {
 			Chain  types.Chain `json:"chain"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "参数错误", http.StatusBadRequest)
+			log.Printf("[ERROR] 参数解析失败: %v", err)
+			http.Error(w, "请求参数格式错误", http.StatusBadRequest)
 			return
 		}
+
+		// 参数验证
+		if req.UserID == "" {
+			log.Println("[ERROR] user_id 不能为空")
+			http.Error(w, "user_id 不能为空", http.StatusBadRequest)
+			return
+		}
+		if req.Chain != types.ChainBTC && req.Chain != types.ChainETH {
+			log.Printf("[ERROR] 不支持的链类型: %s", req.Chain)
+			http.Error(w, "不支持的链类型，仅支持 btc/eth", http.StatusBadRequest)
+			return
+		}
+
+		log.Printf("[INFO] 收到地址生成请求 | user_id=%s | chain=%s", req.UserID, req.Chain)
 
 		var resp types.AddressResponse
-		var err error
+		var genErr error
 
 		if req.Chain == types.ChainBTC {
-			resp, err = btcWallet.GenerateDepositAddress(r.Context(), req.UserID, req.Chain)
-		} else if req.Chain == types.ChainETH {
-			resp, err = ethWallet.GenerateDepositAddress(r.Context(), req.UserID, req.Chain)
+			resp, genErr = btcWallet.GenerateDepositAddress(r.Context(), req.UserID, req.Chain)
 		} else {
-			http.Error(w, "不支持的链", http.StatusBadRequest)
-			return
+			resp, genErr = ethWallet.GenerateDepositAddress(r.Context(), req.UserID, req.Chain)
 		}
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if genErr != nil {
+			log.Printf("[ERROR] 生成地址失败: %v", genErr)
+			http.Error(w, "生成地址失败: "+genErr.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		walletAddressesTotal.Inc()
+		log.Printf("[SUCCESS] 地址生成成功 | address=%s | path=%s", resp.Address, resp.Path)
+
 		json.NewEncoder(w).Encode(resp)
 	})
 
 	http.Handle("/metrics", promhttp.Handler())
 
-	// === 优雅退出（彻底解决 ctx unused）===
+	// === 优雅退出（ctx 被真正消费）===
 	ctx, cancel := context.WithCancel(context.Background())
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-	// 启动 HTTP 服务
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
-		}
-	}()
+	srv := &http.Server{Addr: ":2113"}
 
-	// 真正消费 ctx（关键！）
 	go func() {
 		<-sig
 		log.Println("⛔ 收到关闭信号，正在优雅关闭...")
@@ -112,6 +117,9 @@ func main() {
 	log.Println(`测试 BTC: curl -X POST http://localhost:2113/api/v1/address -H "Content-Type: application/json" -d '{"user_id":"test001","chain":"btc"}'`)
 	log.Println(`测试 ETH: curl -X POST http://localhost:2113/api/v1/address -H "Content-Type: application/json" -d '{"user_id":"test001","chain":"eth"}'`)
 
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
 	// 等待退出
 	<-ctx.Done()
 }

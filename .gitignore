@@ -6,3 +6,8 @@
 
 *.bak
 *.bak.bak
+
+# Secrets
+.env
+*.enc
+secrets/
