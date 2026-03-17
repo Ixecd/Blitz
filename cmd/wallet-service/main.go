@@ -16,18 +16,9 @@ import (
 	"github.com/Ixecd/web3-blitz/internal/wallet/types"
 	"github.com/btcsuite/btcd/rpcclient"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/prometheus/client_golang/prometheus"
-)
-
-var (
-	walletAddressesTotal = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "wallet_addresses_generated_total",
-		Help: "Total addresses generated",
-	})
 )
 
 func main() {
-	prometheus.MustRegister(walletAddressesTotal)
 	// 生命周期控制，最先创建
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -97,34 +88,12 @@ func main() {
 
 	// 开始扫块
 	go watcher.Start(ctx)
-
-	// 消费deposits写DB
-	go func() {
-		for deposit := range watcher.Deposits() {
-			log.Printf("📥 入账处理: %+v", deposit)
-			// TODO: 写数据库
-			err := queries.CreateDeposit(context.Background(), db.CreateDepositParams{
-				TxID:      deposit.TxID,
-				Address:   deposit.Address,
-				UserID:    deposit.UserID,
-				Amount:    deposit.Amount,
-				Height:    int64(deposit.Height),
-				Confirmed: 1,
-				Chain:     string(deposit.Chain),
-			})
-			if err != nil {
-				log.Printf("[ERROR] 写入deposit失败: %v", err)
-			} else {
-				log.Printf("✅ deposit已写入DB: txid=%s", deposit.TxID)
-			}
-		}
-	}()
-
 	go ethWatcher.Start(ctx)
 
-	go func() {
-		for deposit := range ethWatcher.Deposits() {
-			log.Printf("📥 ETH入账处理: %+v", deposit)
+	// 抽成函数
+	consumeDeposits := func(ch <-chan types.DepositRecord, chainName string) {
+		for deposit := range ch {
+			log.Printf("📥 %s入账处理: %+v", chainName, deposit)
 			err := queries.CreateDeposit(context.Background(), db.CreateDepositParams{
 				TxID:      deposit.TxID,
 				Address:   deposit.Address,
@@ -135,12 +104,15 @@ func main() {
 				Chain:     string(deposit.Chain),
 			})
 			if err != nil {
-				log.Printf("[ERROR] ETH写入deposit失败: %v", err)
+				log.Printf("[ERROR] %s写入deposit失败: %v", chainName, err)
 			} else {
-				log.Printf("✅ ETH deposit已写入DB: txid=%s", deposit.TxID)
+				log.Printf("✅ %s deposit已写入DB: txid=%s", chainName, deposit.TxID)
 			}
 		}
-	}()
+	}
+
+	go consumeDeposits(watcher.Deposits(), "BTC")
+	go consumeDeposits(ethWatcher.Deposits(), "ETH")
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
