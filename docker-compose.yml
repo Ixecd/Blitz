@@ -1,10 +1,9 @@
-version: '3.8'
-
 services:
   bitcoind:
     image: qingchun22/bitcoind-regtest:latest
     container_name: bitcoind
     restart: always
+    user: root
     ports:
       - "18443:18443"
     volumes:
@@ -28,7 +27,6 @@ services:
       - --dev.period=5
     ports:
       - "8545:8545"
-
   wallet-service:
     build:
       context: .
@@ -44,15 +42,11 @@ services:
       - "2113:2113"
     environment:
       - WALLET_HD_SEED=${WALLET_HD_SEED}
+      - BTC_RPC_HOST=bitcoind:18443/wallet/blitz_wallet
+      - ETH_RPC_HOST=http://geth:8545
     volumes:
       - wallet-data:/app/data
 
 volumes:
   bitcoind-data:
   wallet-data:
-
-
-environment:
-  - WALLET_HD_SEED=${WALLET_HD_SEED}
-  - BTC_RPC_HOST=bitcoind:18443/wallet/blitz_wallet
-  - ETH_RPC_HOST=http://geth:8545

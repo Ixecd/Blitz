@@ -1,129 +1,117 @@
-# web3-blitz (dtk) ⛓️ v1.0
+# web3-blitz ⚡
 
-**Go + K8s Helm Scaffold**：1行 init boilerplate，1键 AI-plan + deploy (helm + image + resources + rollout)
+> 基于 Go + K8s 的 Web3 交易所基础设施，支持 BTC/ETH 充值监控、HD 钱包派生、链上数据持久化。
 
-## 🚀 Quickstart
-
+## 🏗️ 架构
 ```
-go install github.com/Ixecd/web3-blitz/cmd/dtk@latest
-dtk init --name myapp --module github.com/me/myapp
-cd myapp
-go mod tidy
-git init
-git add --all .
-dtk deploy  # 默认即开启认证授权
-```
-
-**e2e 30s**：boilerplate → helm ns deploy → AI replicas=1 cpu100m mem128Mi → rollout。
-
-## ⚙️ Features
-
-- **init**：Makefile + scripts + helm charts + docker + githooks + vscode
-- **deploy**：AI yaml plan (configs/components.yaml) → helm upgrade + k set image/resources/scale + rollout status
-- **multiarch**：make image.multiarch PLATFORMS=linux/amd64,arm64
-- **env**：configs/web3-blitz.env PROJECT_NAME KUBE_NAMESPACE REGISTRY_PREFIX
-- **vars**：VERSION ARCH REGISTRY_PREFIX auto ?= v0.1.0 amd64 local
-
-**no bullshit**：no node_modules, alpine base, go mod tidy ready。
-
-## 📋 Commands
-
-### dtk init [flags]
-
-```
---name <lowercase>  # web3-blitz (ROOT_PACKAGE)
---module <github.com/me/myapp>  # go mod
---output ~/myapp  # default ./myapp
---template <dir>  # DTK_TEMPLATE_ROOT
---force  # overwrite
+┌─────────────────────────────────────────────┐
+│                  K8s Cluster                │
+│                                             │
+│  ┌──────────────┐     ┌──────────────────┐  │
+│  │   bitcoind   │     │     geth-rpc     │  │
+│  │  (regtest)   │     │   (--dev mode)   │  │
+│  └──────┬───────┘     └────────┬─────────┘  │
+│         │                      │            │
+│  ┌──────▼──────────────────────▼─────────┐  │
+│  │           wallet-service              │  │
+│  │    HD派地址 │ Deposit Watcher │ REST   │  │
+│  │           SQLite (blitz.db)           │  │
+│  └───────────────────────────────────────┘  │
+└─────────────────────────────────────────────┘
 ```
 
-gen：
-```
-Makefile (tidy gen lint build image push deploy)
-cmd/myapp/main.go (http 8080 /healthz)
-configs/components.yaml (AI plan input)
-configs/web3-blitz.env (PROJECT_NAME=myapp KUBE_NAMESPACE=myapp REGISTRY_PREFIX=local)
-deployments/myapp/Chart.yaml values.yaml templates/
-build/docker/myapp/Dockerfile
-```
+## ✨ Features
 
-### dtk deploy [flags]
+- **HD钱包**：BIP44路径派生，支持BTC/ETH充值地址生成
+- **Deposit Watcher**：实时扫块监听充值，自动入账
+- **持久化**：SQLite + sqlc，服务重启不丢状态
+- **可观测**：Prometheus metrics + Grafana dashboard
+- **云原生**：一键`dtk deploy`部署到K8s
 
-```
---components configs/components.yaml  # AI input
---namespace myns  # default web3-blitz.env KUBE_NAMESPACE
---context ctx  # k context
---dry-run  # plan only
-```
+## 🚀 快速开始
 
-flow：
-1. AI plan resources (replicas cpu mem storage)
-2. make deploy.full (helm install + k set image/scale/resources)
-3. rollout status --timeout=300s
+### 本地开发
+```bash
+# 启动所有依赖（bitcoind + geth）
+docker compose up -d
 
-**git:master*** ignore (legacy arg)。
-
-## 🛠️ Makefile Targets
-
-```
-make tidy gen lint cover build  # dev
-make image.multiarch push.multiarch  # build/push amd64/arm64
-make deploy.full  # helm + run
-make release VERSION=v1.0.0  # tag push
-make help  # full
+# 启动服务
+go run cmd/wallet-service/main.go
 ```
 
-vars：
-```
-VERSION=v1.0.0 ARCH=amd64 REGISTRY_PREFIX=local ROOT_DIR=$(pwd)
+### 停止依赖
+```bash
+docker compose down
 ```
 
-## 🔧 Customization
-
-**components.yaml**：
+### 一键部署到K8s
+```bash
+# 确保configs/project.env配置正确
+dtk deploy
 ```
+
+### 生成充值地址
+```bash
+curl -X POST http://localhost:2113/api/v1/address \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"user001","chain":"btc"}'
+```
+
+### 查询余额
+```bash
+curl "http://localhost:2113/api/v1/balance?address=bcrt1q...&chain=btc"
+```
+
+## 📦 服务说明
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| wallet-service | 2113 | 核心钱包服务，REST API |
+| bitcoind | 18443 | BTC节点 (regtest) |
+| geth-rpc | 8545 | ETH节点 (dev mode) |
+| Prometheus | 2112 | 指标采集 |
+| Grafana | 3000 | 可视化面板 |
+
+## 🗂️ 项目结构
+```
+web3-blitz/
+├── cmd/
+│   ├── wallet-service/    # 核心服务入口
+│   └── mining/            # 挖矿工具
+├── internal/
+│   ├── wallet/            # HD钱包、Watcher、BTC/ETH实现
+│   └── db/                # sqlc生成的DB层
+├── deployments/           # Helm Chart
+├── build/docker/          # Dockerfile
+├── configs/               # 配置文件
+└── docs/                  # 文档
+```
+
+## ⚙️ 配置
+
+`configs/project.env`：
+```ini
+PROJECT_NAME=web3-blitz
+KUBE_NAMESPACE=web3-blitz
+REGISTRY_PREFIX=qingchun22
+ARCH=arm64
+VERSION=v0.1.1
+```
+
+`configs/components.yaml`：
+```yaml
 components:
- - name: first
-   port: 8080
-   image: first
+  - name: wallet-service
+    port: 2113
+    image: wallet-service
 ```
 
-AI → replicas=1 cpu=100m memory=128Mi
+## 📚 文档
 
-**web3-blitz.env**：
-```
-PROJECT_NAME=first
-KUBE_NAMESPACE=first
-REGISTRY_PREFIX=local
-```
+- [wallet-core 设计文档](docs/wallet-core.md)
+- [部署指南](docs/guide/deploy.md)
+- [dtk 使用指南](docs/guide/dtk.md)
 
-**Chart.yaml/values.yaml**：helm templates deployment svc。
+## 📄 License
 
-**Dockerfile**：build/docker/first/Dockerfile alpine copy bin。
-
-## 🐛 Troubleshooting
-
-- **HEAD**：git commit/tag v0.1.0 pre-deploy
-- **Chart deps**：template clean (dependencies: [])
-- **image empty**：VERSION/REGISTRY_PREFIX export
-- **override**：Makefile rm release.tag block
-
-## 🎖️ v1.0 Changelog
-
-- template replace web3-blitz → name
-- web3-blitz.env gen
-- Chart.yaml deps clean
-- main.go makeEnv env + vars
-- ROOT_DIR pwd
-- e2e init→deploy pod up
-
-## 🤝 Contrib
-
-1. fork github.com/Ixecd/web3-blitz
-2. dtk init --name fix --module your/fix
-3. code
-4. make image push deploy
-5. PR
-
-**license**：MIT
+MIT
