@@ -11,7 +11,7 @@ WHERE confirmed = 0
 ORDER BY height ASC;
 
 -- name: CreateDepositAddress :exec
-INSERT INTO deposit_addresses (user_id, address, chain, path)
+INSERT OR IGNORE INTO deposit_addresses (user_id, address, chain, path)
 VALUES (?, ?, ?, ?);
 
 -- name: GetAddressByAddress :one

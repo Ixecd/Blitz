@@ -1,5 +1,32 @@
 package types
 
+import "sync"
+
+// AddressRegistry 地址注册表，address -> userID，所有链共用
+type AddressRegistry struct {
+	mu   sync.RWMutex
+	data map[string]string
+}
+
+func NewAddressRegistry() *AddressRegistry {
+    return &AddressRegistry{
+        data: make(map[string]string),
+    }
+}
+
+func (r *AddressRegistry) Register(address, userID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.data[address] = userID
+}
+
+func (r *AddressRegistry) Lookup(address string) (string, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	userID, ok := r.data[address]
+	return userID, ok
+}
+
 // Chain 链类型
 type Chain string
 

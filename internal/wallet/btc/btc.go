@@ -16,11 +16,11 @@ import (
 type BTCWallet struct {
 	hdWallet *core.HDWallet
 	rpc      *rpcclient.Client // 新增：真实 RPC 客户端
-	registry *AddressRegistry
+	registry *types.AddressRegistry
 	queries  *db.Queries // 加这个
 }
 
-func NewBTCWallet(hd *core.HDWallet, rpc *rpcclient.Client, registry *AddressRegistry, queries *db.Queries) *BTCWallet {
+func NewBTCWallet(hd *core.HDWallet, rpc *rpcclient.Client, registry *types.AddressRegistry, queries *db.Queries) *BTCWallet {
 	return &BTCWallet{hdWallet: hd, rpc: rpc, registry: registry, queries: queries}
 }
 

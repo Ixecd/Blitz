@@ -49,7 +49,7 @@ func main() {
 	log.Println("✅ 数据库已连接")
 
 	// 先创建空的registry
-	registry := btc.NewAddressRegistry()
+	registry := types.NewAddressRegistry()
 
 	// 用queries填充registry，服务重启不丢状态
 	addrs, err := queries.ListAllDepositAddresses(context.Background())
@@ -86,11 +86,12 @@ func main() {
 
 	// 业务组件
 	btcWallet := btc.NewBTCWallet(hdWallet, btcRPC, registry, queries)
-	ethWallet := eth.NewETHWallet(hdWallet, ethRPC)
+	ethWallet := eth.NewETHWallet(hdWallet, ethRPC, registry, queries)
 
 	log.Println("🚀 Wallet Core 服务已启动（真实 RPC 已连接）")
 
 	watcher := btc.NewDepositWatcher(btcRPC, registry)
+	ethWatcher := eth.NewETHDepositWatcher(ethRPC, registry)
 
 	// 注册所有路由到mux，address、balance、metrics
 	mux := http.NewServeMux()
@@ -195,6 +196,28 @@ func main() {
 				log.Printf("[ERROR] 写入deposit失败: %v", err)
 			} else {
 				log.Printf("✅ deposit已写入DB: txid=%s", deposit.TxID)
+			}
+		}
+	}()
+
+	go ethWatcher.Start(ctx)
+
+	go func() {
+		for deposit := range ethWatcher.Deposits() {
+			log.Printf("📥 ETH入账处理: %+v", deposit)
+			err := queries.CreateDeposit(context.Background(), db.CreateDepositParams{
+				TxID:      deposit.TxID,
+				Address:   deposit.Address,
+				UserID:    deposit.UserID,
+				Amount:    deposit.Amount,
+				Height:    int64(deposit.Height),
+				Confirmed: 1,
+				Chain:     string(deposit.Chain),
+			})
+			if err != nil {
+				log.Printf("[ERROR] ETH写入deposit失败: %v", err)
+			} else {
+				log.Printf("✅ ETH deposit已写入DB: txid=%s", deposit.TxID)
 			}
 		}
 	}()

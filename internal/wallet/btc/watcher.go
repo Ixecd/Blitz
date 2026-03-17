@@ -3,7 +3,6 @@ package btc
 import (
 	"context"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/Ixecd/web3-blitz/internal/wallet/types"
@@ -12,40 +11,15 @@ import (
 	"github.com/btcsuite/btcd/rpcclient"
 )
 
-// AddressRegistry 地址注册表，address -> userID
-type AddressRegistry struct {
-	mu   sync.RWMutex
-	data map[string]string
-}
-
-func NewAddressRegistry() *AddressRegistry {
-	return &AddressRegistry{
-		data: make(map[string]string),
-	}
-}
-
-func (r *AddressRegistry) Register(address, userID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.data[address] = userID
-}
-
-func (r *AddressRegistry) Lookup(address string) (string, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	userID, ok := r.data[address]
-	return userID, ok
-}
-
 // DepositWatcher 监听BTC充值
 type DepositWatcher struct {
 	rpc      *rpcclient.Client
-	registry *AddressRegistry
+	registry *types.AddressRegistry
 	deposits chan types.DepositRecord
 	lastHeight int64
 }
 
-func NewDepositWatcher(rpc *rpcclient.Client, registry *AddressRegistry) *DepositWatcher {
+func NewDepositWatcher(rpc *rpcclient.Client, registry *types.AddressRegistry) *DepositWatcher {
 	return &DepositWatcher{
 		rpc:      rpc,
 		registry: registry,

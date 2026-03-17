@@ -3,8 +3,10 @@ package eth
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 
+	"github.com/Ixecd/web3-blitz/internal/db"
 	"github.com/Ixecd/web3-blitz/internal/wallet/core"
 	"github.com/Ixecd/web3-blitz/internal/wallet/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,11 +16,13 @@ import (
 
 type ETHWallet struct {
 	hdWallet *core.HDWallet
-	rpc      *ethclient.Client   // 新增：真实 Geth 客户端
+	rpc      *ethclient.Client // 新增：真实 Geth 客户端
+	registry *types.AddressRegistry
+	queries  *db.Queries
 }
 
-func NewETHWallet(hd *core.HDWallet, rpc *ethclient.Client) *ETHWallet {
-	return &ETHWallet{hdWallet: hd, rpc: rpc}
+func NewETHWallet(hd *core.HDWallet, rpc *ethclient.Client, registry *types.AddressRegistry, queries *db.Queries) *ETHWallet {
+	return &ETHWallet{hdWallet: hd, rpc: rpc, registry: registry, queries: queries}
 }
 
 // GenerateDepositAddress 生成真实 ETH 充值地址（BIP44）
@@ -45,6 +49,18 @@ func (w *ETHWallet) GenerateDepositAddress(ctx context.Context, userID string, c
 	}
 
 	address := crypto.PubkeyToAddress(privKey.PublicKey)
+
+	w.registry.Register(address.Hex(), userID)
+
+	err = w.queries.CreateDepositAddress(ctx, db.CreateDepositAddressParams{
+		UserID:  userID,
+		Address: address.Hex(),
+		Chain:   string(chain),
+		Path:    path,
+	})
+	if err != nil {
+		log.Printf("[WARN] ETH写入deposit_address失败: %v", err)
+	}
 
 	return types.AddressResponse{
 		Address: address.Hex(),

@@ -38,7 +38,7 @@ func (q *Queries) CreateDeposit(ctx context.Context, arg CreateDepositParams) er
 }
 
 const createDepositAddress = `-- name: CreateDepositAddress :exec
-INSERT INTO deposit_addresses (user_id, address, chain, path)
+INSERT OR IGNORE INTO deposit_addresses (user_id, address, chain, path)
 VALUES (?, ?, ?, ?)
 `
 
