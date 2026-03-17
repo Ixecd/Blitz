@@ -122,4 +122,4 @@ kubectl get pods -n web3-blitz
 
 - [完整部署指南](deploy.md)
 - [dtk 使用指南](dtk.md)
-- [wallet-core 设计文档](../wallet-core.md)
+- [wallet-core 设计文档](../../design/wallet-core.md)
