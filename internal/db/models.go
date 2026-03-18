@@ -13,9 +13,9 @@ type Deposit struct {
 	TxID      string       `db:"tx_id" json:"tx_id"`
 	Address   string       `db:"address" json:"address"`
 	UserID    string       `db:"user_id" json:"user_id"`
-	Amount    float64      `db:"amount" json:"amount"`
+	Amount    string       `db:"amount" json:"amount"`
 	Height    int64        `db:"height" json:"height"`
-	Confirmed int64        `db:"confirmed" json:"confirmed"`
+	Confirmed int32        `db:"confirmed" json:"confirmed"`
 	Chain     string       `db:"chain" json:"chain"`
 	CreatedAt sql.NullTime `db:"created_at" json:"created_at"`
 	UpdatedAt sql.NullTime `db:"updated_at" json:"updated_at"`
@@ -35,8 +35,8 @@ type Withdrawal struct {
 	TxID      sql.NullString `db:"tx_id" json:"tx_id"`
 	Address   string         `db:"address" json:"address"`
 	UserID    string         `db:"user_id" json:"user_id"`
-	Amount    float64        `db:"amount" json:"amount"`
-	Fee       float64        `db:"fee" json:"fee"`
+	Amount    string         `db:"amount" json:"amount"`
+	Fee       string         `db:"fee" json:"fee"`
 	Status    string         `db:"status" json:"status"`
 	Chain     string         `db:"chain" json:"chain"`
 	CreatedAt sql.NullTime   `db:"created_at" json:"created_at"`

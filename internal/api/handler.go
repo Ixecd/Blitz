@@ -146,10 +146,17 @@ func (h *Handler) GetTotalBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var totalFloat float64
+	if t, ok := total.(string); ok {
+		fmt.Sscanf(t, "%f", &totalFloat)
+	} else {
+		totalFloat, _ = total.(float64)
+	}
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user_id": userID,
 		"chain":   chainStr,
-		"total":   total,
+		"total":   totalFloat,
 	})
 }
 
@@ -203,6 +210,10 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 			return val
 		case int64:
 			return float64(val)
+		case string:
+			var f float64
+			fmt.Sscanf(val, "%f", &f)
+			return f
 		case []byte:
 			var f float64
 			fmt.Sscanf(string(val), "%f", &f)
@@ -221,7 +232,7 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	record, err := h.queries.CreateWithdrawal(ctx, db.CreateWithdrawalParams{
 		UserID:  req.UserID,
 		Address: req.ToAddress,
-		Amount:  req.Amount,
+		Amount:  fmt.Sprintf("%.8f", req.Amount),
 		Chain:   string(req.Chain),
 	})
 	if err != nil {
@@ -255,7 +266,7 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	_ = h.queries.UpdateWithdrawalTx(ctx, db.UpdateWithdrawalTxParams{
 		TxID:   sql.NullString{String: txID, Valid: txID != ""},
-		Fee:    fee,
+		Fee:    fmt.Sprintf("%.8f", fee),
 		Status: status,
 		ID:     record.ID,
 	})
@@ -309,13 +320,16 @@ func (h *Handler) ListWithdrawals(w http.ResponseWriter, r *http.Request) {
 
 	resp := make([]WithdrawalResp, 0, len(withdrawals))
 	for _, w := range withdrawals {
+		var amount, fee float64
+		fmt.Sscanf(w.Amount, "%f", &amount)
+		fmt.Sscanf(w.Fee, "%f", &fee)
 		resp = append(resp, WithdrawalResp{
 			ID:        w.ID,
 			TxID:      w.TxID.String,
 			Address:   w.Address,
 			UserID:    w.UserID,
-			Amount:    w.Amount,
-			Fee:       w.Fee,
+			Amount:    amount,
+			Fee:       fee,
 			Status:    w.Status,
 			Chain:     w.Chain,
 			CreatedAt: w.CreatedAt.Time.Format("2006-01-02 15:04:05"),

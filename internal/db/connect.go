@@ -2,64 +2,27 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
 
-	_ "modernc.org/sqlite" // 替换 go-sqlite3
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func NewDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", path)
+	dsn := os.Getenv("DATABASE_URL")
+	driver := "pgx"
+
+	if dsn == "" {
+		// 本地开发默认值
+		dsn = "postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable"
+	}
+
+	db, err := sql.Open(driver, dsn)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open db: %w", err)
 	}
 	if err := db.Ping(); err != nil {
-		return nil, err
-	}
-	if err := initSchema(db); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ping db: %w", err)
 	}
 	return db, nil
-}
-
-func initSchema(db *sql.DB) error {
-	statements := []string{
-		`CREATE TABLE IF NOT EXISTS deposit_addresses (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id    TEXT NOT NULL,
-            address    TEXT NOT NULL UNIQUE,
-            chain      TEXT NOT NULL,
-            path       TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`,
-		`CREATE TABLE IF NOT EXISTS deposits (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            tx_id      TEXT NOT NULL UNIQUE,
-            address    TEXT NOT NULL,
-            user_id    TEXT NOT NULL,
-            amount     REAL NOT NULL,
-            height     INTEGER NOT NULL,
-            confirmed  INTEGER NOT NULL DEFAULT 0,
-            chain      TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`,
-		`CREATE TABLE IF NOT EXISTS withdrawals (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            tx_id      TEXT,
-            address    TEXT NOT NULL,
-            user_id    TEXT NOT NULL,
-            amount     REAL NOT NULL,
-            fee        REAL NOT NULL DEFAULT 0,
-            status     TEXT NOT NULL DEFAULT 'pending',
-            chain      TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )`,
-	}
-
-	for _, stmt := range statements {
-		if _, err := db.Exec(stmt); err != nil {
-			return err
-		}
-	}
-	return nil
 }

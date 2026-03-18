@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -99,7 +100,7 @@ func main() {
 	consumeDeposits := func(ch <-chan types.DepositRecord, chainName string) {
 		for deposit := range ch {
 			log.Printf("📥 %s入账处理: %+v", chainName, deposit)
-			confirmed := int64(0)
+			confirmed := int32(0)
 			if deposit.Confirmed {
 				confirmed = 1
 			}
@@ -107,7 +108,7 @@ func main() {
 				TxID:      deposit.TxID,
 				Address:   deposit.Address,
 				UserID:    deposit.UserID,
-				Amount:    deposit.Amount,
+				Amount:    fmt.Sprintf("%.8f", deposit.Amount),
 				Height:    int64(deposit.Height),
 				Confirmed: confirmed,
 				Chain:     string(deposit.Chain),

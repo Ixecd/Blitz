@@ -12,17 +12,17 @@ import (
 
 const createDeposit = `-- name: CreateDeposit :exec
 INSERT INTO deposits (tx_id, address, user_id, amount, height, confirmed, chain)
-VALUES (?, ?, ?, ?, ?, ?, ?)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 `
 
 type CreateDepositParams struct {
-	TxID      string  `db:"tx_id" json:"tx_id"`
-	Address   string  `db:"address" json:"address"`
-	UserID    string  `db:"user_id" json:"user_id"`
-	Amount    float64 `db:"amount" json:"amount"`
-	Height    int64   `db:"height" json:"height"`
-	Confirmed int64   `db:"confirmed" json:"confirmed"`
-	Chain     string  `db:"chain" json:"chain"`
+	TxID      string `db:"tx_id" json:"tx_id"`
+	Address   string `db:"address" json:"address"`
+	UserID    string `db:"user_id" json:"user_id"`
+	Amount    string `db:"amount" json:"amount"`
+	Height    int64  `db:"height" json:"height"`
+	Confirmed int32  `db:"confirmed" json:"confirmed"`
+	Chain     string `db:"chain" json:"chain"`
 }
 
 func (q *Queries) CreateDeposit(ctx context.Context, arg CreateDepositParams) error {
@@ -39,8 +39,9 @@ func (q *Queries) CreateDeposit(ctx context.Context, arg CreateDepositParams) er
 }
 
 const createDepositAddress = `-- name: CreateDepositAddress :exec
-INSERT OR IGNORE INTO deposit_addresses (user_id, address, chain, path)
-VALUES (?, ?, ?, ?)
+INSERT INTO deposit_addresses (user_id, address, chain, path)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (address) DO NOTHING
 `
 
 type CreateDepositAddressParams struct {
@@ -62,15 +63,15 @@ func (q *Queries) CreateDepositAddress(ctx context.Context, arg CreateDepositAdd
 
 const createWithdrawal = `-- name: CreateWithdrawal :one
 INSERT INTO withdrawals (address, user_id, amount, fee, status, chain)
-VALUES (?, ?, ?, 0, 'pending', ?)
+VALUES ($1, $2, $3, 0, 'pending', $4)
 RETURNING id, tx_id, address, user_id, amount, fee, status, chain, created_at, updated_at
 `
 
 type CreateWithdrawalParams struct {
-	Address string  `db:"address" json:"address"`
-	UserID  string  `db:"user_id" json:"user_id"`
-	Amount  float64 `db:"amount" json:"amount"`
-	Chain   string  `db:"chain" json:"chain"`
+	Address string `db:"address" json:"address"`
+	UserID  string `db:"user_id" json:"user_id"`
+	Amount  string `db:"amount" json:"amount"`
+	Chain   string `db:"chain" json:"chain"`
 }
 
 func (q *Queries) CreateWithdrawal(ctx context.Context, arg CreateWithdrawalParams) (Withdrawal, error) {
@@ -97,7 +98,7 @@ func (q *Queries) CreateWithdrawal(ctx context.Context, arg CreateWithdrawalPara
 }
 
 const getAddressByAddress = `-- name: GetAddressByAddress :one
-SELECT id, user_id, address, chain, path, created_at FROM deposit_addresses WHERE address = ? LIMIT 1
+SELECT id, user_id, address, chain, path, created_at FROM deposit_addresses WHERE address = $1 LIMIT 1
 `
 
 func (q *Queries) GetAddressByAddress(ctx context.Context, address string) (DepositAddress, error) {
@@ -128,7 +129,7 @@ func (q *Queries) GetAllChainsTotalDeposit(ctx context.Context) (interface{}, er
 }
 
 const getDepositByTxID = `-- name: GetDepositByTxID :one
-SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits WHERE tx_id = ? LIMIT 1
+SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits WHERE tx_id = $1 LIMIT 1
 `
 
 func (q *Queries) GetDepositByTxID(ctx context.Context, txID string) (Deposit, error) {
@@ -152,7 +153,7 @@ func (q *Queries) GetDepositByTxID(ctx context.Context, txID string) (Deposit, e
 const getTotalDepositByChain = `-- name: GetTotalDepositByChain :one
 SELECT COALESCE(SUM(amount), 0) as total
 FROM deposits
-WHERE chain = ? AND confirmed = 1
+WHERE chain = $1 AND confirmed = 1
 `
 
 func (q *Queries) GetTotalDepositByChain(ctx context.Context, chain string) (interface{}, error) {
@@ -164,8 +165,8 @@ func (q *Queries) GetTotalDepositByChain(ctx context.Context, chain string) (int
 
 const getTotalDepositByUserIDAndChain = `-- name: GetTotalDepositByUserIDAndChain :one
 SELECT COALESCE(SUM(amount), 0) as total
-FROM deposits 
-WHERE user_id = ? AND chain = ? AND confirmed = 1
+FROM deposits
+WHERE user_id = $1 AND chain = $2 AND confirmed = 1
 `
 
 type GetTotalDepositByUserIDAndChainParams struct {
@@ -183,7 +184,7 @@ func (q *Queries) GetTotalDepositByUserIDAndChain(ctx context.Context, arg GetTo
 const getTotalWithdrawalByUserIDAndChain = `-- name: GetTotalWithdrawalByUserIDAndChain :one
 SELECT COALESCE(SUM(amount), 0) as total
 FROM withdrawals
-WHERE user_id = ? AND chain = ? AND status = 'completed'
+WHERE user_id = $1 AND chain = $2 AND status = 'completed'
 `
 
 type GetTotalWithdrawalByUserIDAndChainParams struct {
@@ -199,7 +200,7 @@ func (q *Queries) GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg Ge
 }
 
 const listAddressesByUserID = `-- name: ListAddressesByUserID :many
-SELECT id, user_id, address, chain, path, created_at FROM deposit_addresses WHERE user_id = ? ORDER BY created_at ASC
+SELECT id, user_id, address, chain, path, created_at FROM deposit_addresses WHERE user_id = $1 ORDER BY created_at ASC
 `
 
 func (q *Queries) ListAddressesByUserID(ctx context.Context, userID string) ([]DepositAddress, error) {
@@ -267,7 +268,7 @@ func (q *Queries) ListAllDepositAddresses(ctx context.Context) ([]DepositAddress
 }
 
 const listDepositsByChain = `-- name: ListDepositsByChain :many
-SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits WHERE chain = ? ORDER BY created_at DESC
+SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits WHERE chain = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListDepositsByChain(ctx context.Context, chain string) ([]Deposit, error) {
@@ -305,7 +306,7 @@ func (q *Queries) ListDepositsByChain(ctx context.Context, chain string) ([]Depo
 }
 
 const listDepositsByUserID = `-- name: ListDepositsByUserID :many
-SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits WHERE user_id = ? ORDER BY created_at DESC
+SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits WHERE user_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListDepositsByUserID(ctx context.Context, userID string) ([]Deposit, error) {
@@ -343,8 +344,8 @@ func (q *Queries) ListDepositsByUserID(ctx context.Context, userID string) ([]De
 }
 
 const listUnconfirmedDeposits = `-- name: ListUnconfirmedDeposits :many
-SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits 
-WHERE confirmed = 0 
+SELECT id, tx_id, address, user_id, amount, height, confirmed, chain, created_at, updated_at FROM deposits
+WHERE confirmed = 0
 ORDER BY height ASC
 `
 
@@ -383,7 +384,7 @@ func (q *Queries) ListUnconfirmedDeposits(ctx context.Context) ([]Deposit, error
 }
 
 const listWithdrawalsByUserID = `-- name: ListWithdrawalsByUserID :many
-SELECT id, tx_id, address, user_id, amount, fee, status, chain, created_at, updated_at FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC
+SELECT id, tx_id, address, user_id, amount, fee, status, chain, created_at, updated_at FROM withdrawals WHERE user_id = $1 ORDER BY created_at DESC
 `
 
 func (q *Queries) ListWithdrawalsByUserID(ctx context.Context, userID string) ([]Withdrawal, error) {
@@ -422,8 +423,8 @@ func (q *Queries) ListWithdrawalsByUserID(ctx context.Context, userID string) ([
 
 const updateDepositConfirmed = `-- name: UpdateDepositConfirmed :exec
 UPDATE deposits
-SET confirmed = 1, updated_at = CURRENT_TIMESTAMP
-WHERE id = ?
+SET confirmed = 1, updated_at = NOW()
+WHERE id = $1
 `
 
 func (q *Queries) UpdateDepositConfirmed(ctx context.Context, id int64) error {
@@ -433,13 +434,13 @@ func (q *Queries) UpdateDepositConfirmed(ctx context.Context, id int64) error {
 
 const updateWithdrawalTx = `-- name: UpdateWithdrawalTx :exec
 UPDATE withdrawals
-SET tx_id = ?, fee = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-WHERE id = ?
+SET tx_id = $1, fee = $2, status = $3, updated_at = NOW()
+WHERE id = $4
 `
 
 type UpdateWithdrawalTxParams struct {
 	TxID   sql.NullString `db:"tx_id" json:"tx_id"`
-	Fee    float64        `db:"fee" json:"fee"`
+	Fee    string         `db:"fee" json:"fee"`
 	Status string         `db:"status" json:"status"`
 	ID     int64          `db:"id" json:"id"`
 }
