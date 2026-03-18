@@ -23,11 +23,14 @@ Go + 云原生的交易所钱包充提币系统。
 - AddressRegistry（内存映射 address→userID，读写锁，启动从DB恢复）
 - PostgreSQL + sqlc 持久化（deposit_addresses / deposits / withdrawals 三张表）
 - REST API（internal/api 包，Handler + NewMux）
-- BTC 提币（SendToAddress，委托 bitcoind 热钱包）
-- ETH 提币（手动构建交易 + EIP-155 签名 + 广播，热钱包私钥从环境变量注入）
-- 余额校验（已确认充值 - 已完成提币 = 可用余额，提币前拦截）
+- BTC 提币（SendToAddress + GetTransaction fee 回填）
+- ETH 提币（手动构建交易 + EIP-155 签名 + 广播）
+- 余额校验（已确认充值 - 已完成提币 = 可用余额）
 - 确认数逻辑（BTC 6块，ETH 12块，ConfirmChecker 每30s轮询）
-- 提币历史查询（GET /api/v1/withdrawals，干净 DTO）
+- 提币历史查询（GET /api/v1/withdrawals）
+- etcd 分布式锁（防重复提币，lease TTL 30s，进程崩溃自动释放）
+- etcd 选主（ConfirmChecker Leader Election，lease TTL 15s，keepalive续期）
+- etcd 配置热更新（BTC/ETH RPC 地址无重启切换，ConfigWatcher watch prefix）
 - Prometheus metrics
 - K8s 一键部署（dtk deploy + Helm）
 
@@ -39,7 +42,7 @@ Go + 云原生的交易所钱包充提币系统。
 | GET    | /api/v1/balance       | 查询链上余额                             |
 | GET    | /api/v1/deposits      | 查询充值记录（by user_id）               |
 | GET    | /api/v1/balance/total | 查询累计已确认充值（by user_id + chain） |
-| POST   | /api/v1/withdraw      | 发起提币（含余额校验）                   |
+| POST   | /api/v1/withdraw      | 发起提币（含余额校验 + 分布式锁）        |
 | GET    | /api/v1/withdrawals   | 查询提币历史（by user_id）               |
 | GET    | /metrics              | Prometheus                               |
 
@@ -50,35 +53,41 @@ Go + 云原生的交易所钱包充提币系统。
 ```
 internal/
 ├── api/
-│   ├── handler.go       # 所有 HTTP handler（含 Withdraw + ListWithdrawals）
+│   ├── handler.go       # 所有 HTTP handler
 │   └── server.go        # NewMux，路由注册
+├── config/
+│   ├── rpc.go           # BTCRPCHolder / ETHRPCHolder（线程安全）
+│   └── watcher.go       # ConfigWatcher，watch /blitz/config/ 前缀
 ├── db/
-│   ├── schema.sql       # PostgreSQL 表结构（BIGSERIAL / NUMERIC(20,8) / TIMESTAMPTZ）
-│   ├── queries.sql      # @param 风格，sqlc generate
+│   ├── schema.sql       # PostgreSQL 表结构
+│   ├── queries.sql      # @param 风格
 │   └── queries.sql.go   # sqlc 生成
+├── lock/
+│   └── lock.go          # etcd 分布式锁（lease + txn CAS）
 ├── wallet/
 │   ├── btc/
-│   │   ├── btc.go       # BTCWallet（GenerateDepositAddress, GetBalance）
-│   │   ├── withdraw.go  # BTC 提币（SendToAddress）
-│   │   └── watcher.go   # BTC DepositWatcher（confirmed=false写入）
+│   │   ├── btc.go       # BTCWallet（用 BTCRPCHolder）
+│   │   ├── withdraw.go  # BTC 提币 + fee 回填
+│   │   └── watcher.go   # BTC DepositWatcher（用 BTCRPCHolder）
 │   ├── eth/
-│   │   ├── eth.go       # ETHWallet（GenerateDepositAddress, GetBalance）
-│   │   ├── withdraw.go  # ETH 提币（EIP-155 签名广播）
-│   │   └── watcher.go   # ETH DepositWatcher（confirmed=false写入）
+│   │   ├── eth.go       # ETHWallet（用 ETHRPCHolder）
+│   │   ├── withdraw.go  # ETH 提币（EIP-155）
+│   │   └── watcher.go   # ETH DepositWatcher（用 ETHRPCHolder）
 │   ├── core/
 │   │   ├── hd.go        # HDWallet（BIP44 派生）
-│   │   └── confirm.go   # ConfirmChecker（BTC 6块，ETH 12块）
-│   └── types/           # 共享类型（Chain, AddressRegistry, DepositRecord等）
+│   │   └── confirm.go   # ConfirmChecker + etcd 选主
+│   └── types/           # 共享类型
 cmd/
 └── wallet-service/main.go
 scripts/
-└── test_withdraw.sh      # 9步 BTC 充提币 e2e 测试脚本（USER 用时间戳）
+└── test_withdraw.sh      # 9步 BTC 充提币 e2e 测试
 test/
 └── e2e/
-    └── withdraw_test.go  # Go e2e 测试（Testify）
+    └── withdraw_test.go
 docs/
 └── guide/zh-CN/
-    └── withdraw.md       # 提币流程完整文档
+    └── withdraw.md
+Procfile.single           # goreman 单节点 etcd 启动
 ```
 
 ---
@@ -86,30 +95,39 @@ docs/
 ## 本地启动
 
 ```bash
-# 启动所有依赖（bitcoind + geth + postgres）
-docker compose up -d
+# 1. 启动 etcd（单节点）
+goreman -f Procfile.single start
 
-# BTC 初始化（第一次）
+# 2. 启动依赖
+docker compose up -d   # bitcoind + geth + postgres
+
+# 3. BTC 初始化（第一次）
 bitcoin-cli -regtest createwallet "blitz_wallet"
 bitcoin-cli -regtest -rpcwallet=blitz_wallet -generate 101
 
-# 启动服务
+# 4. 启动服务
 DATABASE_URL=postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable \
 ETH_HOT_WALLET_KEY=<私钥hex> \
 go run cmd/wallet-service/main.go
 ```
 
-ETH 热钱包私钥获取（geth dev 模式）：
+---
+
+## etcd 使用场景
+
+| 场景       | key                                      | 说明                         |
+| ---------- | ---------------------------------------- | ---------------------------- |
+| 分布式锁   | `/blitz/lock/withdraw:{user_id}:{chain}` | 防重复提币，TTL 30s          |
+| 选主       | `/blitz/leader/confirm-checker`          | ConfirmChecker 单活，TTL 15s |
+| 配置热更新 | `/blitz/config/btc_rpc_host`             | BTC RPC 地址                 |
+| 配置热更新 | `/blitz/config/eth_rpc_host`             | ETH RPC 地址                 |
+
+触发热更新：
 
 ```bash
-docker cp <geth容器ID>:"$(docker exec <容器ID> find / -name 'UTC--*' 2>/dev/null | head -1)" ./keystore.json
-python3 -m venv /tmp/v && source /tmp/v/bin/activate && pip install eth-account
-python3 -c "
-from eth_account import Account; import json
-ks = json.load(open('./keystore.json'))
-acc = Account.from_key(Account.decrypt(ks, ''))
-print(acc.key.hex())
-"
+etcdctl --endpoints=localhost:2379 put \
+  /blitz/config/btc_rpc_host \
+  "localhost:18443/wallet/blitz_wallet"
 ```
 
 ---
@@ -117,47 +135,47 @@ print(acc.key.hex())
 ## 测试
 
 ```bash
-# BTC 充提币完整流程（含确认数校验）
+# 充提币完整流程
 ./scripts/test_withdraw.sh
 
-# Go e2e 测试（需服务已启动）
-go test ./test/e2e/... -v -timeout 120s
+# 并发重复提币测试（期望一个 429 一个 200）
+curl -X POST http://localhost:2113/api/v1/withdraw \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"test001","to_address":"bcrt1q...","amount":0.05,"chain":"btc"}' &
+curl -X POST http://localhost:2113/api/v1/withdraw \
+  -H "Content-Type: application/json" \
+  -d '{"user_id":"test001","to_address":"bcrt1q...","amount":0.05,"chain":"btc"}' &
+wait
 ```
 
 ---
 
-## 待实现（按优先级）
+## 待实现
 
-### 1. Redis 防重复提币
+### 1. IAM（轻量 JWT 中间件）
 
-同一笔提币请求不能广播两次，用 Redis 分布式锁实现。
-位置：`handler.go` Withdraw，`CreateWithdrawal` 之前加锁，广播完释放。
-锁 key：`withdraw:lock:{user_id}:{chain}`
+堵住 /api/v1/withdraw 无鉴权漏洞，一天内可完成。
 
-### 2. BTC fee 回填
+### 2. 多签支持
 
-`SendToAddress` 不直接返回 fee，需通过 `GetTransaction(txid)` 回查后更新 DB。
-位置：`btc/withdraw.go`，广播成功后异步查询。
-
-### 3. 多签支持
-
-### 4. CI/CD（GitHub Actions）
+### 3. CI/CD（GitHub Actions）
 
 ---
 
 ## 技术决策备忘
 
-- HD 钱包底层库：`github.com/tyler-smith/go-bip32`（替换了有历史包袱的 btcutil/hdkeychain）
-- BTC 地址：P2WPKH bech32，网络参数 RegressionNetParams（上主网改 MainNetParams）
-- ETH 提币签名：EIP-155（含 chainID，防跨链重放）
-- Nonce：从 PendingNonceAt 获取，防止 ETH 交易重放
-- 提币策略：先落库（pending）→ 广播 → 更新 status（completed/failed），保证可追溯
-- 余额校验：`confirmed充值总额 - completed提币总额 = 可用余额`，两个 SQL 查询相减
-- 确认数：watcher 写入 confirmed=0，ConfirmChecker 每30s轮询，块高差达标后更新 confirmed=1
-- ETH 热钱包私钥：环境变量注入，K8s 生产走 Secret
-- DB：PostgreSQL（NUMERIC(20,8) 存金额，避免浮点精度问题），sqlc 生成 string 类型，handler 层转 float64 返回
-- BTC fee 当前存 0（已知 TODO，需 GetTransaction 回填）
-- test_withdraw.sh 用时间戳用户（`USER="test-$(date +%s)"`）避免历史数据干扰
+- HD 钱包：`github.com/tyler-smith/go-bip32`
+- BTC 地址：P2WPKH bech32，RegressionNetParams（上主网改 MainNetParams）
+- ETH 提币：EIP-155 签名，PendingNonceAt 防重放
+- 提币策略：先落库 pending → 广播 → 更新 completed/failed
+- 余额校验：confirmed充值 - completed提币 = 可用余额
+- 确认数：watcher 写 confirmed=0，ConfirmChecker 轮询更新
+- DB：PostgreSQL，NUMERIC(20,8) 存金额，sqlc 生成 string，handler 层转 float64
+- etcd 锁：lease + txn CAS，崩溃自动释放，无死锁风险
+- etcd 选主：campaign loop + keepalive，TTL 内完成 failover
+- etcd 热更新：watch prefix，重建连接后原子 swap holder
+- RPC 热更新：所有组件通过 Holder.Get() 访问，swap 对调用方透明
+- BTC fee：SendToAddress 后 GetTransaction 回填，regtest 约 0.00007976 BTC
 
 ---
 
@@ -170,23 +188,14 @@ go test ./test/e2e/... -v -timeout 120s
 | WALLET_HD_SEED     | HD 钱包种子        | 空（使用测试 seed）                                         |
 | BTC_RPC_HOST       | bitcoind RPC 地址  | localhost:18443/wallet/blitz_wallet                         |
 | ETH_RPC_HOST       | geth RPC 地址      | http://localhost:8545                                       |
+| ETCD_ENDPOINTS     | etcd 地址          | localhost:2379                                              |
+| PORT               | HTTP 服务端口      | 2113                                                        |
 
 ---
 
-## 常见问题
+## 历史快照
 
-**BTC 提币报 insufficient funds**：blitz_wallet 余额不足，执行 `-generate 101` 补充。
-
-**ETH 提币报"热钱包未配置"**：启动时未传 `ETH_HOT_WALLET_KEY`。
-
-**确认后余额还是 0**：挖块数不够，BTC 需要 6 块，脚本用 `-generate 6`。
-
-**Step 7 没有被拦截**：USER 用了固定值，改成 `USER="test-$(date +%s)"`。
-
-**geth CrashLoopBackOff（K8s）**：deployment 加 `enableServiceLinks: false`。
-
-**postgres 首次启动建表失败**：确认 `schema.sql` 挂载路径正确，或手动执行：
-
-```bash
-docker exec -i postgres psql -U blitz -d blitz < internal/db/schema.sql
+```
+snapshots/
+└── SNAPSHOT-2026-03-18-pg-migration.md   # PostgreSQL 迁移完成时
 ```
