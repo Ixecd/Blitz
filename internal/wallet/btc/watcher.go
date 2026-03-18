@@ -117,7 +117,7 @@ func (w *DepositWatcher) processBlock(height int64) {
 				UserID:    userID,
 				Amount:    vout.Value,
 				Height:    height,
-				Confirmed: true,
+				Confirmed: false,
 				Chain:     types.ChainBTC,
 			}
 

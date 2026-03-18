@@ -25,19 +25,23 @@ Go + 云原生的交易所钱包充提币系统。
 - REST API（internal/api 包，Handler + NewMux）
 - BTC 提币（SendToAddress，委托 bitcoind 热钱包）
 - ETH 提币（手动构建交易 + EIP-155 签名 + 广播，热钱包私钥从环境变量注入）
+- 余额校验（已确认充值 - 已完成提币 = 可用余额，提币前拦截）
+- 确认数逻辑（BTC 6块，ETH 12块，ConfirmChecker 每30s轮询）
+- 提币历史查询（GET /api/v1/withdrawals，干净 DTO 无 sql.NullString 暴露）
 - Prometheus metrics
 - K8s 一键部署（dtk deploy + Helm）
 
 ### API 列表
 
-| Method | Path | 说明 |
-|--------|------|------|
-| POST | /api/v1/address | 生成充值地址 |
-| GET  | /api/v1/balance | 查询链上余额 |
-| GET  | /api/v1/deposits | 查询充值记录（by user_id）|
-| GET  | /api/v1/balance/total | 查询累计充值（by user_id + chain）|
-| POST | /api/v1/withdraw | 发起提币 |
-| GET  | /metrics | Prometheus |
+| Method | Path                  | 说明                                     |
+| ------ | --------------------- | ---------------------------------------- |
+| POST   | /api/v1/address       | 生成充值地址                             |
+| GET    | /api/v1/balance       | 查询链上余额                             |
+| GET    | /api/v1/deposits      | 查询充值记录（by user_id）               |
+| GET    | /api/v1/balance/total | 查询累计已确认充值（by user_id + chain） |
+| POST   | /api/v1/withdraw      | 发起提币（含余额校验）                   |
+| GET    | /api/v1/withdrawals   | 查询提币历史（by user_id）               |
+| GET    | /metrics              | Prometheus                               |
 
 ---
 
@@ -46,7 +50,7 @@ Go + 云原生的交易所钱包充提币系统。
 ```
 internal/
 ├── api/
-│   ├── handler.go       # 所有 HTTP handler
+│   ├── handler.go       # 所有 HTTP handler（含 Withdraw + ListWithdrawals）
 │   └── server.go        # NewMux，路由注册
 ├── db/
 │   ├── schema.sql
@@ -55,20 +59,26 @@ internal/
 ├── wallet/
 │   ├── btc/
 │   │   ├── btc.go       # BTCWallet（GenerateDepositAddress, GetBalance）
-│   │   ├── withdraw.go  # BTC 提币
-│   │   └── watcher.go   # BTC DepositWatcher
+│   │   ├── withdraw.go  # BTC 提币（SendToAddress）
+│   │   └── watcher.go   # BTC DepositWatcher（confirmed=false写入）
 │   ├── eth/
 │   │   ├── eth.go       # ETHWallet（GenerateDepositAddress, GetBalance）
-│   │   ├── withdraw.go  # ETH 提币
-│   │   └── watcher.go   # ETH DepositWatcher
-│   ├── core/            # HDWallet（BIP44 派生）
-│   ├── registry/        # AddressRegistry（已移到 types）
+│   │   ├── withdraw.go  # ETH 提币（EIP-155 签名广播）
+│   │   └── watcher.go   # ETH DepositWatcher（confirmed=false写入）
+│   ├── core/
+│   │   ├── hd.go        # HDWallet（BIP44 派生）
+│   │   └── confirm.go   # ConfirmChecker（BTC 6块，ETH 12块）
 │   └── types/           # 共享类型（Chain, AddressRegistry, DepositRecord等）
 cmd/
 └── wallet-service/main.go
-configs/
-├── project.env          # REGISTRY_PREFIX / ARCH / VERSION
-└── wallet/config.yaml
+scripts/
+└── test_withdraw.sh      # 9步 BTC 充提币 e2e 测试脚本（USER 用时间戳）
+test/
+└── e2e/
+    └── withdraw_test.go  # Go e2e 测试（Testify）
+docs/
+└── guide/zh-CN/
+    └── withdraw.md       # 提币流程完整文档
 ```
 
 ---
@@ -87,7 +97,8 @@ bitcoin-cli -regtest -rpcwallet=blitz_wallet -generate 101
 ETH_HOT_WALLET_KEY=<私钥hex> go run cmd/wallet-service/main.go
 ```
 
-ETH 热钱包私钥获取方式（geth dev 模式）：
+ETH 热钱包私钥获取（geth dev 模式）：
+
 ```bash
 docker cp <geth容器ID>:"$(docker exec <容器ID> find / -name 'UTC--*' 2>/dev/null | head -1)" ./keystore.json
 python3 -m venv /tmp/v && source /tmp/v/bin/activate && pip install eth-account
@@ -101,35 +112,51 @@ print(acc.key.hex())
 
 ---
 
+## 测试
+
+```bash
+# BTC 充提币完整流程（含确认数校验）
+chmod +x scripts/test_withdraw.sh
+./scripts/test_withdraw.sh
+
+# Go e2e 测试（需服务已启动）
+go test ./test/e2e/... -v -timeout 120s
+```
+
+---
+
 ## 待实现（按优先级）
 
-### 1. 余额校验（下一个要做的）
-提币前检查用户 DB 余额是否足够，需要先看 `GetTotalDepositByUserIDAndChain` 的返回类型。
-位置：`internal/api/handler.go` Withdraw handler，`CreateWithdrawal` 之前加校验。
-需要的文件：`internal/db/queries.sql.go`（GetTotalDepositByUserIDAndChain 函数签名）
+### 1. PostgreSQL 迁移
 
-### 2. 提币历史查询
-`GET /api/v1/withdrawals?user_id=`
-queries.sql 已有 `ListWithdrawalsByUserID`，只需加 handler + 注册路由。
+替换 SQLite，生产环境必须。
 
-### 3. 确认数逻辑
-BTC 需要 6 个块确认，ETH 需要 12 个块确认，现在是 1 块就写 confirmed=true。
-位置：btc/watcher.go 和 eth/watcher.go。
+### 2. Redis 防重复提币
 
-### 4. PostgreSQL 迁移 + Redis
-替换 SQLite，Redis 用于防重复提币（分布式锁）。
+同一笔提币请求不能广播两次，用 Redis 分布式锁实现。
+
+### 3. BTC fee 回填
+
+`SendToAddress` 不直接返回 fee，需通过 `GetTransaction(txid)` 回查后更新 DB。
+
+### 4. 多签支持
+
+### 5. CI/CD（GitHub Actions）
 
 ---
 
 ## 技术决策备忘
 
-- HD 钱包底层库用 `github.com/tyler-smith/go-bip32`（替换了有历史包袱的 btcutil/hdkeychain）
+- HD 钱包底层库：`github.com/tyler-smith/go-bip32`（替换了有历史包袱的 btcutil/hdkeychain）
 - BTC 地址：P2WPKH bech32，网络参数 RegressionNetParams（上主网改 MainNetParams）
 - ETH 提币签名：EIP-155（含 chainID，防跨链重放）
 - Nonce：从 PendingNonceAt 获取，防止 ETH 交易重放
-- 提币策略：先落库（pending）再广播，广播失败更新 status=failed，保证可追溯
-- BTC fee 当前存 0（bitcoind 不直接返回 fee，需后续 GetTransaction 回填，已知 TODO）
-- ETH 热钱包私钥通过环境变量注入，K8s 生产环境走 Secret
+- 提币策略：先落库（pending）→ 广播 → 更新 status（completed/failed），保证可追溯
+- 余额校验：`confirmed充值总额 - completed提币总额 = 可用余额`，两个 SQL 查询相减
+- 确认数：watcher 写入 confirmed=0，ConfirmChecker 每30s轮询，块高差达标后更新 confirmed=1
+- ETH 热钱包私钥：环境变量注入，K8s 生产走 Secret
+- BTC fee 当前存 0（已知 TODO，需 GetTransaction 回填）
+- test_withdraw.sh 用时间戳用户（`USER="test-$(date +%s)"`）避免历史数据干扰
 
 ---
 
@@ -137,6 +164,10 @@ BTC 需要 6 个块确认，ETH 需要 12 个块确认，现在是 1 块就写 c
 
 **BTC 提币报 insufficient funds**：blitz_wallet 余额不足，执行 `-generate 101` 补充。
 
-**ETH 提币报"热钱包未配置"**：启动时未传 `ETH_HOT_WALLET_KEY` 环境变量。
+**ETH 提币报"热钱包未配置"**：启动时未传 `ETH_HOT_WALLET_KEY`。
 
-**geth CrashLoopBackOff（K8s）**：deployment 里加 `enableServiceLinks: false`，防止 K8s 注入 `GETH_PORT` 环境变量干扰 geth 启动。
+**确认后余额还是 0**：挖块数不够，BTC 需要 6 块才触发确认，脚本用 `-generate 6`。
+
+**test_withdraw.sh Step 7 没有被拦截**：USER 用了固定值导致历史数据干扰，改成 `USER="test-$(date +%s)"`。
+
+**geth CrashLoopBackOff（K8s）**：deployment 加 `enableServiceLinks: false`。

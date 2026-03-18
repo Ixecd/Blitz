@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -175,6 +176,47 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	// 已确认充值
+	rawDeposit, err := h.queries.GetTotalDepositByUserIDAndChain(ctx, db.GetTotalDepositByUserIDAndChainParams{
+		UserID: req.UserID,
+		Chain:  string(req.Chain),
+	})
+	if err != nil {
+		http.Error(w, "查询充值余额失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 已完成提币
+	rawWithdrawal, err := h.queries.GetTotalWithdrawalByUserIDAndChain(ctx, db.GetTotalWithdrawalByUserIDAndChainParams{
+		UserID: req.UserID,
+		Chain:  string(req.Chain),
+	})
+	if err != nil {
+		http.Error(w, "查询提币余额失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 类型转换（复用之前的模式）
+	toFloat := func(v interface{}) float64 {
+		switch val := v.(type) {
+		case float64:
+			return val
+		case int64:
+			return float64(val)
+		case []byte:
+			var f float64
+			fmt.Sscanf(string(val), "%f", &f)
+			return f
+		}
+		return 0
+	}
+
+	available := toFloat(rawDeposit) - toFloat(rawWithdrawal)
+	if available < req.Amount {
+		http.Error(w, fmt.Sprintf("余额不足: 可用 %.8f，请求 %.8f", available, req.Amount), http.StatusBadRequest)
+		return
+	}
+
 	// 1. 写入 pending 记录，拿到 ID
 	record, err := h.queries.CreateWithdrawal(ctx, db.CreateWithdrawalParams{
 		UserID:  req.UserID,
@@ -233,4 +275,52 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		"status":     status,
 		"chain":      req.Chain,
 	})
+}
+
+func (h *Handler) ListWithdrawals(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "只支持 GET", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := r.URL.Query().Get("user_id")
+	if userID == "" {
+		http.Error(w, "缺少 user_id 参数", http.StatusBadRequest)
+		return
+	}
+
+	withdrawals, err := h.queries.ListWithdrawalsByUserID(r.Context(), userID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type WithdrawalResp struct {
+		ID        int64   `json:"id"`
+		TxID      string  `json:"tx_id"`
+		Address   string  `json:"address"`
+		UserID    string  `json:"user_id"`
+		Amount    float64 `json:"amount"`
+		Fee       float64 `json:"fee"`
+		Status    string  `json:"status"`
+		Chain     string  `json:"chain"`
+		CreatedAt string  `json:"created_at"`
+	}
+
+	resp := make([]WithdrawalResp, 0, len(withdrawals))
+	for _, w := range withdrawals {
+		resp = append(resp, WithdrawalResp{
+			ID:        w.ID,
+			TxID:      w.TxID.String,
+			Address:   w.Address,
+			UserID:    w.UserID,
+			Amount:    w.Amount,
+			Fee:       w.Fee,
+			Status:    w.Status,
+			Chain:     w.Chain,
+			CreatedAt: w.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	json.NewEncoder(w).Encode(resp)
 }

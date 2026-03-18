@@ -180,6 +180,24 @@ func (q *Queries) GetTotalDepositByUserIDAndChain(ctx context.Context, arg GetTo
 	return total, err
 }
 
+const getTotalWithdrawalByUserIDAndChain = `-- name: GetTotalWithdrawalByUserIDAndChain :one
+SELECT COALESCE(SUM(amount), 0) as total
+FROM withdrawals
+WHERE user_id = ? AND chain = ? AND status = 'completed'
+`
+
+type GetTotalWithdrawalByUserIDAndChainParams struct {
+	UserID string `db:"user_id" json:"user_id"`
+	Chain  string `db:"chain" json:"chain"`
+}
+
+func (q *Queries) GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg GetTotalWithdrawalByUserIDAndChainParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getTotalWithdrawalByUserIDAndChain, arg.UserID, arg.Chain)
+	var total interface{}
+	err := row.Scan(&total)
+	return total, err
+}
+
 const listAddressesByUserID = `-- name: ListAddressesByUserID :many
 SELECT id, user_id, address, chain, path, created_at FROM deposit_addresses WHERE user_id = ? ORDER BY created_at ASC
 `
@@ -400,6 +418,17 @@ func (q *Queries) ListWithdrawalsByUserID(ctx context.Context, userID string) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateDepositConfirmed = `-- name: UpdateDepositConfirmed :exec
+UPDATE deposits
+SET confirmed = 1, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?
+`
+
+func (q *Queries) UpdateDepositConfirmed(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, updateDepositConfirmed, id)
+	return err
 }
 
 const updateWithdrawalTx = `-- name: UpdateWithdrawalTx :exec

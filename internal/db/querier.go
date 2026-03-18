@@ -17,12 +17,14 @@ type Querier interface {
 	GetDepositByTxID(ctx context.Context, txID string) (Deposit, error)
 	GetTotalDepositByChain(ctx context.Context, chain string) (interface{}, error)
 	GetTotalDepositByUserIDAndChain(ctx context.Context, arg GetTotalDepositByUserIDAndChainParams) (interface{}, error)
+	GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg GetTotalWithdrawalByUserIDAndChainParams) (interface{}, error)
 	ListAddressesByUserID(ctx context.Context, userID string) ([]DepositAddress, error)
 	ListAllDepositAddresses(ctx context.Context) ([]DepositAddress, error)
 	ListDepositsByChain(ctx context.Context, chain string) ([]Deposit, error)
 	ListDepositsByUserID(ctx context.Context, userID string) ([]Deposit, error)
 	ListUnconfirmedDeposits(ctx context.Context) ([]Deposit, error)
 	ListWithdrawalsByUserID(ctx context.Context, userID string) ([]Withdrawal, error)
+	UpdateDepositConfirmed(ctx context.Context, id int64) error
 	UpdateWithdrawalTx(ctx context.Context, arg UpdateWithdrawalTxParams) error
 }
 

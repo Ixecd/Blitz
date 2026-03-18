@@ -56,3 +56,13 @@ WHERE id = ?;
 
 -- name: ListWithdrawalsByUserID :many
 SELECT * FROM withdrawals WHERE user_id = ? ORDER BY created_at DESC;
+
+-- name: UpdateDepositConfirmed :exec
+UPDATE deposits
+SET confirmed = 1, updated_at = CURRENT_TIMESTAMP
+WHERE id = ?;
+
+-- name: GetTotalWithdrawalByUserIDAndChain :one
+SELECT COALESCE(SUM(amount), 0) as total
+FROM withdrawals
+WHERE user_id = ? AND chain = ? AND status = 'completed';

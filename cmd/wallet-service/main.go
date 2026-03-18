@@ -89,6 +89,8 @@ func main() {
 	h := api.NewHandler(btcWallet, ethWallet, queries)
 	mux := api.NewMux(h)
 
+	confirmChecker := core.NewConfirmChecker(queries, btcRPC, ethRPC)
+	go confirmChecker.Start(ctx)
 	// 开始扫块
 	go watcher.Start(ctx)
 	go ethWatcher.Start(ctx)
@@ -97,13 +99,17 @@ func main() {
 	consumeDeposits := func(ch <-chan types.DepositRecord, chainName string) {
 		for deposit := range ch {
 			log.Printf("📥 %s入账处理: %+v", chainName, deposit)
+			confirmed := int64(0)
+			if deposit.Confirmed {
+				confirmed = 1
+			}
 			err := queries.CreateDeposit(context.Background(), db.CreateDepositParams{
 				TxID:      deposit.TxID,
 				Address:   deposit.Address,
 				UserID:    deposit.UserID,
 				Amount:    deposit.Amount,
 				Height:    int64(deposit.Height),
-				Confirmed: 1,
+				Confirmed: confirmed,
 				Chain:     string(deposit.Chain),
 			})
 			if err != nil {

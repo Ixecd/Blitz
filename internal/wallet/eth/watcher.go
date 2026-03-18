@@ -110,7 +110,7 @@ func (w *ETHDepositWatcher) processBlock(ctx context.Context, height uint64) {
 			UserID:    userID,
 			Amount:    amountFloat,
 			Height:    int64(height),
-			Confirmed: true,
+			Confirmed: false,
 			Chain:     types.ChainETH,
 		}
 
