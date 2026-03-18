@@ -3,9 +3,11 @@ package btc
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/btcsuite/btcd/chaincfg/chainhash"
 )
 
 type WithdrawResult struct {
@@ -30,5 +32,22 @@ func (w *BTCWallet) Withdraw(ctx context.Context, toAddress string, amount float
 		return WithdrawResult{}, fmt.Errorf("BTC 广播失败: %w", err)
 	}
 
-	return WithdrawResult{TxID: txHash.String(), Fee: 0}, nil
+	fee := w.queryFee(txHash)
+
+	return WithdrawResult{TxID: txHash.String(), Fee: fee}, nil
+}
+
+// queryFee 通过 GetTransaction 回查实际扣除的手续费
+func (w *BTCWallet) queryFee(txHash *chainhash.Hash) float64 {
+	tx, err := w.rpc.GetTransaction(txHash)
+	if err != nil {
+		log.Printf("[WARN] 回查 BTC fee 失败 txid=%s: %v", txHash.String(), err)
+		return 0
+	}
+	// bitcoind 返回的 fee 是负数（支出），取绝对值
+	fee := tx.Fee
+	if fee < 0 {
+		fee = -fee
+	}
+	return fee
 }
