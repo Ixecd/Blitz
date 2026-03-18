@@ -125,7 +125,7 @@ func main() {
 	h := api.NewHandler(btcWallet, ethWallet, queries, locker)
 	mux := api.NewMux(h)
 
-	confirmChecker := core.NewConfirmChecker(queries, btcRPC, ethRPC)
+	confirmChecker := core.NewConfirmChecker(queries, btcRPC, ethRPC, etcdClient)
 	go confirmChecker.Start(ctx)
 	// 开始扫块
 	go watcher.Start(ctx)
@@ -162,7 +162,11 @@ func main() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 
-	srv := &http.Server{Addr: ":2113", Handler: mux}
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "2113"
+	}
+	srv := &http.Server{Addr: ":" + port, Handler: mux}
 
 	// 信号处理goroutine
 	go func() {

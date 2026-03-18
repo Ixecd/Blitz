@@ -7,34 +7,105 @@ import (
 
 	"github.com/Ixecd/web3-blitz/internal/db"
 	"github.com/btcsuite/btcd/rpcclient"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
 	BTCRequiredConfirms = 6
 	ETHRequiredConfirms = 12
+	leaderKey           = "/blitz/leader/confirm-checker"
+	leaseTTL            = 15 // 秒
 )
 
 type ConfirmChecker struct {
-	queries *db.Queries
-	btcRPC  *rpcclient.Client
-	ethRPC  *ethclient.Client
+	queries    *db.Queries
+	btcRPC     *rpcclient.Client
+	ethRPC     *ethclient.Client
+	etcdClient *clientv3.Client
 }
 
-func NewConfirmChecker(queries *db.Queries, btcRPC *rpcclient.Client, ethRPC *ethclient.Client) *ConfirmChecker {
-	return &ConfirmChecker{queries: queries, btcRPC: btcRPC, ethRPC: ethRPC}
+func NewConfirmChecker(queries *db.Queries, btcRPC *rpcclient.Client, ethRPC *ethclient.Client, etcdClient *clientv3.Client) *ConfirmChecker {
+	return &ConfirmChecker{
+		queries:    queries,
+		btcRPC:     btcRPC,
+		ethRPC:     ethRPC,
+		etcdClient: etcdClient,
+	}
 }
 
 func (c *ConfirmChecker) Start(ctx context.Context) {
-	log.Println("🔎 ConfirmChecker 已启动")
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+	log.Println("🔎 ConfirmChecker 已启动，竞选 Leader...")
 
 	for {
 		select {
 		case <-ctx.Done():
 			log.Println("⛔ ConfirmChecker 已停止")
 			return
+		default:
+			c.campaign(ctx)
+			// campaign 退出说明失去 Leader，等 3s 再重新竞选
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(3 * time.Second):
+			}
+		}
+	}
+}
+
+// campaign 竞选 Leader，成功后持续持有 lease 并执行 check
+// lease 过期或 ctx 取消时退出
+func (c *ConfirmChecker) campaign(ctx context.Context) {
+	// 1. 创建 lease
+	lease, err := c.etcdClient.Grant(ctx, leaseTTL)
+	if err != nil {
+		log.Printf("[WARN] ConfirmChecker 创建 lease 失败: %v", err)
+		return
+	}
+
+	// 2. 原子竞选：key 不存在才写入
+	txn := c.etcdClient.Txn(ctx).
+		If(clientv3.Compare(clientv3.CreateRevision(leaderKey), "=", 0)).
+		Then(clientv3.OpPut(leaderKey, "1", clientv3.WithLease(lease.ID))).
+		Else()
+
+	resp, err := txn.Commit()
+	if err != nil || !resp.Succeeded {
+		// 竞选失败，撤销 lease，等待重试
+		c.etcdClient.Revoke(ctx, lease.ID)
+		if err == nil {
+			log.Println("🔎 ConfirmChecker 竞选失败，当前非 Leader，等待中...")
+		}
+		return
+	}
+
+	log.Println("👑 ConfirmChecker 成为 Leader")
+
+	// 3. 启动 lease 续期（keepalive），保持 Leader 身份
+	keepAlive, err := c.etcdClient.KeepAlive(ctx, lease.ID)
+	if err != nil {
+		c.etcdClient.Revoke(ctx, lease.ID)
+		log.Printf("[WARN] ConfirmChecker keepalive 失败: %v", err)
+		return
+	}
+
+	// 4. 作为 Leader 跑 check 循环
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	defer c.etcdClient.Revoke(context.Background(), lease.ID)
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("⛔ ConfirmChecker Leader 退出")
+			return
+		case _, ok := <-keepAlive:
+			if !ok {
+				// keepalive channel 关闭，lease 过期，失去 Leader
+				log.Println("⚠️  ConfirmChecker lease 过期，重新竞选")
+				return
+			}
 		case <-ticker.C:
 			c.check(ctx)
 		}
@@ -51,13 +122,11 @@ func (c *ConfirmChecker) check(ctx context.Context) {
 		return
 	}
 
-	// 获取当前 BTC 块高
 	var btcHeight int64
 	if info, err := c.btcRPC.GetBlockChainInfo(); err == nil {
 		btcHeight = int64(info.Blocks)
 	}
 
-	// 获取当前 ETH 块高
 	var ethHeight int64
 	if header, err := c.ethRPC.HeaderByNumber(ctx, nil); err == nil {
 		ethHeight = header.Number.Int64()
