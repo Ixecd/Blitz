@@ -1,7 +1,7 @@
 # web3-blitz 项目快照
 
 > 用途：新会话开始时直接把这个文件扔给 Claude，5秒对齐，继续工作。
-> 最后更新：2026-03-18
+> 最后更新：2026-03-19
 
 ---
 
@@ -21,30 +21,35 @@ Go + 云原生的交易所钱包充提币系统。
 - BTC Deposit Watcher（每3s扫块，regtest）
 - ETH Deposit Watcher（每5s扫块，geth dev）
 - AddressRegistry（内存映射 address→userID，读写锁，启动从DB恢复）
-- PostgreSQL + sqlc 持久化（deposit_addresses / deposits / withdrawals 三张表）
+- PostgreSQL + sqlc 持久化（deposit_addresses / deposits / withdrawals / users 四张表）
 - REST API（internal/api 包，Handler + NewMux）
 - BTC 提币（SendToAddress + GetTransaction fee 回填）
 - ETH 提币（手动构建交易 + EIP-155 签名 + 广播）
 - 余额校验（已确认充值 - 已完成提币 = 可用余额）
 - 确认数逻辑（BTC 6块，ETH 12块，ConfirmChecker 每30s轮询）
 - 提币历史查询（GET /api/v1/withdrawals）
-- etcd 分布式锁（防重复提币，lease TTL 30s，进程崩溃自动释放）
-- etcd 选主（ConfirmChecker Leader Election，lease TTL 15s，keepalive续期）
-- etcd 配置热更新（BTC/ETH RPC 地址无重启切换，ConfigWatcher watch prefix）
+- etcd 分布式锁（防重复提币，lease TTL 30s）
+- etcd 选主（ConfirmChecker Leader Election，lease TTL 15s）
+- etcd 配置热更新（BTC/ETH RPC 地址无重启切换）
+- 用户系统（注册/登录，bcrypt 密码加密）
+- JWT 认证（HS256，24h 过期，保护 /withdraw 接口）
+- GitHub Actions CI（build + vet + test + docker build）
 - Prometheus metrics
 - K8s 一键部署（dtk deploy + Helm）
 
 ### API 列表
 
-| Method | Path                  | 说明                                     |
-| ------ | --------------------- | ---------------------------------------- |
-| POST   | /api/v1/address       | 生成充值地址                             |
-| GET    | /api/v1/balance       | 查询链上余额                             |
-| GET    | /api/v1/deposits      | 查询充值记录（by user_id）               |
-| GET    | /api/v1/balance/total | 查询累计已确认充值（by user_id + chain） |
-| POST   | /api/v1/withdraw      | 发起提币（含余额校验 + 分布式锁）        |
-| GET    | /api/v1/withdrawals   | 查询提币历史（by user_id）               |
-| GET    | /metrics              | Prometheus                               |
+| Method | Path | 认证 | 说明 |
+|--------|------|------|------|
+| POST | /api/v1/register | 无 | 用户注册 |
+| POST | /api/v1/login | 无 | 用户登录，返回 JWT token |
+| POST | /api/v1/address | 无 | 生成充值地址 |
+| GET  | /api/v1/balance | 无 | 查询链上余额 |
+| GET  | /api/v1/deposits | 无 | 查询充值记录（by user_id）|
+| GET  | /api/v1/balance/total | 无 | 查询累计已确认充值 |
+| POST | /api/v1/withdraw | **JWT** | 发起提币（含余额校验 + 分布式锁）|
+| GET  | /api/v1/withdrawals | 无 | 查询提币历史（by user_id）|
+| GET  | /metrics | 无 | Prometheus |
 
 ---
 
@@ -53,13 +58,16 @@ Go + 云原生的交易所钱包充提币系统。
 ```
 internal/
 ├── api/
-│   ├── handler.go       # 所有 HTTP handler
-│   └── server.go        # NewMux，路由注册
+│   ├── handler.go       # 所有 HTTP handler（含 Register/Login/Withdraw）
+│   └── server.go        # NewMux，路由注册，JWT 中间件挂载
+├── auth/
+│   ├── auth.go          # HashPassword, CheckPassword, GenerateToken, ParseToken
+│   └── middleware.go    # JWTMiddleware, GetClaims
 ├── config/
 │   ├── rpc.go           # BTCRPCHolder / ETHRPCHolder（线程安全）
 │   └── watcher.go       # ConfigWatcher，watch /blitz/config/ 前缀
 ├── db/
-│   ├── schema.sql       # PostgreSQL 表结构
+│   ├── schema.sql       # PostgreSQL 表结构（含 users 表）
 │   ├── queries.sql      # @param 风格
 │   └── queries.sql.go   # sqlc 生成
 ├── lock/
@@ -68,26 +76,22 @@ internal/
 │   ├── btc/
 │   │   ├── btc.go       # BTCWallet（用 BTCRPCHolder）
 │   │   ├── withdraw.go  # BTC 提币 + fee 回填
-│   │   └── watcher.go   # BTC DepositWatcher（用 BTCRPCHolder）
+│   │   └── watcher.go   # BTC DepositWatcher
 │   ├── eth/
 │   │   ├── eth.go       # ETHWallet（用 ETHRPCHolder）
 │   │   ├── withdraw.go  # ETH 提币（EIP-155）
-│   │   └── watcher.go   # ETH DepositWatcher（用 ETHRPCHolder）
+│   │   └── watcher.go   # ETH DepositWatcher
 │   ├── core/
 │   │   ├── hd.go        # HDWallet（BIP44 派生）
 │   │   └── confirm.go   # ConfirmChecker + etcd 选主
 │   └── types/           # 共享类型
 cmd/
-└── wallet-service/main.go
-scripts/
-└── test_withdraw.sh      # 9步 BTC 充提币 e2e 测试
-test/
-└── e2e/
-    └── withdraw_test.go
-docs/
-└── guide/zh-CN/
-    └── withdraw.md
-Procfile.single           # goreman 单节点 etcd 启动
+├── wallet-service/main.go
+├── chain-miner/main.go  # 双链挖矿 + Prometheus（开发用）
+└── pos-sim/main.go      # ETH PoS 收益模拟
+.github/workflows/
+└── ci.yml               # GitHub Actions CI
+Procfile.single          # goreman 单节点 etcd
 ```
 
 ---
@@ -95,7 +99,7 @@ Procfile.single           # goreman 单节点 etcd 启动
 ## 本地启动
 
 ```bash
-# 1. 启动 etcd（单节点）
+# 1. 启动 etcd
 goreman -f Procfile.single start
 
 # 2. 启动依赖
@@ -115,20 +119,12 @@ go run cmd/wallet-service/main.go
 
 ## etcd 使用场景
 
-| 场景       | key                                      | 说明                         |
-| ---------- | ---------------------------------------- | ---------------------------- |
-| 分布式锁   | `/blitz/lock/withdraw:{user_id}:{chain}` | 防重复提币，TTL 30s          |
-| 选主       | `/blitz/leader/confirm-checker`          | ConfirmChecker 单活，TTL 15s |
-| 配置热更新 | `/blitz/config/btc_rpc_host`             | BTC RPC 地址                 |
-| 配置热更新 | `/blitz/config/eth_rpc_host`             | ETH RPC 地址                 |
-
-触发热更新：
-
-```bash
-etcdctl --endpoints=localhost:2379 put \
-  /blitz/config/btc_rpc_host \
-  "localhost:18443/wallet/blitz_wallet"
-```
+| 场景 | key | TTL |
+|------|-----|-----|
+| 分布式锁 | `/blitz/lock/withdraw:{uid}:{chain}` | 30s |
+| 选主 | `/blitz/leader/confirm-checker` | 15s |
+| 配置热更新 | `/blitz/config/btc_rpc_host` | 永久 |
+| 配置热更新 | `/blitz/config/eth_rpc_host` | 永久 |
 
 ---
 
@@ -138,27 +134,35 @@ etcdctl --endpoints=localhost:2379 put \
 # 充提币完整流程
 ./scripts/test_withdraw.sh
 
-# 并发重复提币测试（期望一个 429 一个 200）
-curl -X POST http://localhost:2113/api/v1/withdraw \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"test001","to_address":"bcrt1q...","amount":0.05,"chain":"btc"}' &
-curl -X POST http://localhost:2113/api/v1/withdraw \
-  -H "Content-Type: application/json" \
-  -d '{"user_id":"test001","to_address":"bcrt1q...","amount":0.05,"chain":"btc"}' &
-wait
+# e2e 测试（需服务已启动）
+go test -tags e2e ./test/e2e/... -v -timeout 120s
+
+# 集成测试（不需要外部服务）
+go test ./test/integration/... -v
 ```
 
 ---
 
-## 待实现
+## 待实现（按优先级）
 
-### 1. IAM（轻量 JWT 中间件）
+### 1. refresh token
+access token 短期（1h），refresh token 长期（7天），面试必问。
 
-堵住 /api/v1/withdraw 无鉴权漏洞，一天内可完成。
+### 2. 提币限额
+每日提币上限，风控基础。需新增 `withdrawal_limits` 表。
 
-### 2. 多签支持
+### 3. ETH reorg 处理
+链重组时回滚已确认充值记录。
 
-### 3. CI/CD（GitHub Actions）
+### 4. consumeDeposits 死信队列
+重试失败后持久化，防止充值记录永久丢失。
+
+### 5. 完整 IAM
+RBAC 权限模型、审计日志、黑名单 token、KYC 等。
+
+### 6. 多签支持
+
+### 7. 主网参数切换
 
 ---
 
@@ -169,27 +173,28 @@ wait
 - ETH 提币：EIP-155 签名，PendingNonceAt 防重放
 - 提币策略：先落库 pending → 广播 → 更新 completed/failed
 - 余额校验：confirmed充值 - completed提币 = 可用余额
-- 确认数：watcher 写 confirmed=0，ConfirmChecker 轮询更新
-- DB：PostgreSQL，NUMERIC(20,8) 存金额，sqlc 生成 string，handler 层转 float64
-- etcd 锁：lease + txn CAS，崩溃自动释放，无死锁风险
+- DB：PostgreSQL，NUMERIC(20,8) 存金额，sqlc 生成 string，handler 转 float64
+- etcd 锁：lease + txn CAS，崩溃自动释放
 - etcd 选主：campaign loop + keepalive，TTL 内完成 failover
 - etcd 热更新：watch prefix，重建连接后原子 swap holder
-- RPC 热更新：所有组件通过 Holder.Get() 访问，swap 对调用方透明
-- BTC fee：SendToAddress 后 GetTransaction 回填，regtest 约 0.00007976 BTC
+- JWT：HS256，Claims 含 user_id + username，24h 过期
+- 密码：bcrypt DefaultCost
+- CI：e2e/smoke 测试加 `//go:build e2e` tag，普通 CI 只跑 integration
 
 ---
 
 ## 环境变量
 
-| 变量               | 说明               | 默认值                                                      |
-| ------------------ | ------------------ | ----------------------------------------------------------- |
-| DATABASE_URL       | PostgreSQL 连接串  | postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable |
-| ETH_HOT_WALLET_KEY | ETH 热钱包私钥 hex | 空（提币不可用）                                            |
-| WALLET_HD_SEED     | HD 钱包种子        | 空（使用测试 seed）                                         |
-| BTC_RPC_HOST       | bitcoind RPC 地址  | localhost:18443/wallet/blitz_wallet                         |
-| ETH_RPC_HOST       | geth RPC 地址      | http://localhost:8545                                       |
-| ETCD_ENDPOINTS     | etcd 地址          | localhost:2379                                              |
-| PORT               | HTTP 服务端口      | 2113                                                        |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| DATABASE_URL | PostgreSQL 连接串 | postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable |
+| ETH_HOT_WALLET_KEY | ETH 热钱包私钥 hex | 空 |
+| WALLET_HD_SEED | HD 钱包种子 | 空（测试 seed）|
+| JWT_SECRET | JWT 签名密钥 | dev-secret（测试用）|
+| ETCD_ENDPOINTS | etcd 地址 | localhost:2379 |
+| PORT | HTTP 服务端口 | 2113 |
+| BTC_RPC_HOST | bitcoind RPC | localhost:18443/wallet/blitz_wallet |
+| ETH_RPC_HOST | geth RPC | http://localhost:8545 |
 
 ---
 
@@ -197,5 +202,6 @@ wait
 
 ```
 snapshots/
-└── SNAPSHOT-2026-03-18-pg-migration.md   # PostgreSQL 迁移完成时
+├── SNAPSHOT-2026-03-18-pg-migration.md
+└── SNAPSHOT-2026-03-18-etcd.md
 ```
