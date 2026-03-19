@@ -12,6 +12,7 @@ import (
 	"github.com/Ixecd/web3-blitz/internal/auth"
 	"github.com/Ixecd/web3-blitz/internal/db"
 	"github.com/Ixecd/web3-blitz/internal/lock"
+	"github.com/Ixecd/web3-blitz/internal/metrics"
 	"github.com/Ixecd/web3-blitz/internal/pkg/code"
 	"github.com/Ixecd/web3-blitz/internal/wallet/btc"
 	"github.com/Ixecd/web3-blitz/internal/wallet/eth"
@@ -196,6 +197,7 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	lockKey := fmt.Sprintf("withdraw:%s:%s", req.UserID, req.Chain)
 	l, err := h.locker.Acquire(ctx, lockKey)
 	if err != nil {
+		metrics.LockAcquireFailTotal.WithLabelValues(lockKey).Inc()
 		Fail(w, code.ErrWalletDuplicateWithdraw)
 		return
 	}
@@ -334,8 +336,11 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if broadcastErr != nil {
-		Fail(w, code.ErrWalletBroadcastFailed)
-		return
+		status = "failed"
+		metrics.WithdrawTotal.WithLabelValues(string(req.Chain), "failed").Inc()
+	} else {
+		metrics.WithdrawTotal.WithLabelValues(string(req.Chain), "completed").Inc()
+		metrics.WithdrawAmount.WithLabelValues(string(req.Chain)).Add(req.Amount)
 	}
 
 	OK(w, map[string]interface{}{

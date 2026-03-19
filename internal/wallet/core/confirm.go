@@ -8,6 +8,7 @@ import (
 
 	"github.com/Ixecd/web3-blitz/internal/config"
 	"github.com/Ixecd/web3-blitz/internal/db"
+	"github.com/Ixecd/web3-blitz/internal/metrics"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
@@ -148,6 +149,7 @@ func (c *ConfirmChecker) check(ctx context.Context) {
 		}
 
 		if currentHeight-d.Height >= required {
+			metrics.DepositTotal.WithLabelValues(d.Chain, "confirmed").Inc()
 			if err := c.queries.UpdateDepositConfirmed(ctx, d.ID); err != nil {
 				log.Printf("[ERROR] 更新confirmed失败 id=%d: %v", d.ID, err)
 				continue

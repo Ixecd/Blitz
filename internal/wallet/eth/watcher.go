@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Ixecd/web3-blitz/internal/config"
+	"github.com/Ixecd/web3-blitz/internal/metrics"
 	wallettypes "github.com/Ixecd/web3-blitz/internal/wallet/types"
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -90,6 +91,7 @@ func (w *ETHDepositWatcher) processBlock(ctx context.Context, height uint64) boo
 	// reorg 检测：当前块的 ParentHash 应该等于上一个已处理块的 Hash
 	if height > 0 && w.lastHash != (common.Hash{}) {
 		if block.ParentHash() != w.lastHash {
+			metrics.ReorgTotal.WithLabelValues("eth").Inc()
 			log.Printf("⚠️  [REORG] ETH 检测到链重组！块高 %d，期望 parentHash=%s，实际 parentHash=%s",
 				height, w.lastHash.Hex(), block.ParentHash().Hex())
 			log.Printf("⚠️  [REORG] 回退到块高 %d 重新扫描", height-1)

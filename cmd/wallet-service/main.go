@@ -15,6 +15,7 @@ import (
 	"github.com/Ixecd/web3-blitz/internal/config"
 	"github.com/Ixecd/web3-blitz/internal/db"
 	"github.com/Ixecd/web3-blitz/internal/lock"
+	"github.com/Ixecd/web3-blitz/internal/metrics"
 	"github.com/Ixecd/web3-blitz/internal/wallet/btc"
 	"github.com/Ixecd/web3-blitz/internal/wallet/core"
 	"github.com/Ixecd/web3-blitz/internal/wallet/eth"
@@ -28,6 +29,7 @@ import (
 func main() {
 	// 生命周期控制，最先创建
 	ctx, cancel := context.WithCancel(context.Background())
+	metrics.Init()
 
 	// 密钥体系，其他所有钱包操作的根基
 	hdWallet, err := core.NewHDWallet()
@@ -136,6 +138,7 @@ func main() {
 	consumeDeposits := func(ch <-chan types.DepositRecord, chainName string) {
 		for deposit := range ch {
 			log.Printf("📥 %s入账处理: %+v", chainName, deposit)
+
 			confirmed := int32(0)
 			if deposit.Confirmed {
 				confirmed = 1
@@ -155,6 +158,8 @@ func main() {
 			for i := range maxRetries {
 				lastErr = queries.CreateDeposit(context.Background(), params)
 				if lastErr == nil {
+					metrics.DepositTotal.WithLabelValues(string(deposit.Chain), "detected").Inc()
+					metrics.DepositAmount.WithLabelValues(string(deposit.Chain)).Add(deposit.Amount)
 					log.Printf("✅ %s deposit已写入DB: txid=%s", chainName, deposit.TxID)
 					break
 				}
@@ -163,6 +168,7 @@ func main() {
 			}
 
 			if lastErr != nil {
+				metrics.DeadLetterTotal.WithLabelValues(chainName + "_deposit").Inc()
 				log.Printf("[ERROR] %s deposit写入最终失败，写入死信队列: txid=%s", chainName, deposit.TxID)
 				payload, _ := json.Marshal(params)
 				_ = queries.CreateDeadLetter(context.Background(), db.CreateDeadLetterParams{
