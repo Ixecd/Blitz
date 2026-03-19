@@ -115,3 +115,17 @@ WHERE user_id = @user_id
   AND chain = @chain
   AND status = 'completed'
   AND created_at > NOW() - INTERVAL '24 hours';
+
+-- name: CreateDeadLetter :exec
+INSERT INTO dead_letters (type, payload, error, retries)
+VALUES (@type, @payload, @error, @retries);
+
+-- name: ListUnresolvedDeadLetters :many
+SELECT * FROM dead_letters
+WHERE resolved = FALSE
+ORDER BY created_at ASC;
+
+-- name: ResolveDeadLetter :exec
+UPDATE dead_letters
+SET resolved = TRUE, updated_at = NOW()
+WHERE id = @id;

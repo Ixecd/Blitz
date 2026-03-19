@@ -9,6 +9,7 @@ import (
 )
 
 type Querier interface {
+	CreateDeadLetter(ctx context.Context, arg CreateDeadLetterParams) error
 	CreateDeposit(ctx context.Context, arg CreateDepositParams) error
 	CreateDepositAddress(ctx context.Context, arg CreateDepositAddressParams) error
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
@@ -31,7 +32,9 @@ type Querier interface {
 	ListDepositsByChain(ctx context.Context, chain string) ([]Deposit, error)
 	ListDepositsByUserID(ctx context.Context, userID string) ([]Deposit, error)
 	ListUnconfirmedDeposits(ctx context.Context) ([]Deposit, error)
+	ListUnresolvedDeadLetters(ctx context.Context) ([]DeadLetter, error)
 	ListWithdrawalsByUserID(ctx context.Context, userID string) ([]Withdrawal, error)
+	ResolveDeadLetter(ctx context.Context, id int64) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID int64) error
 	RevokeRefreshToken(ctx context.Context, token string) error
 	UpdateDepositConfirmed(ctx context.Context, id int64) error

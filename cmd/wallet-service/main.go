@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -158,10 +159,18 @@ func main() {
 					break
 				}
 				log.Printf("[WARN] %s写入deposit失败(第%d次): %v", chainName, i+1, lastErr)
-				time.Sleep(time.Duration(i+1) * time.Second) // 1s, 2s, 3s 递增等待
+				time.Sleep(time.Duration(i+1) * time.Second)
 			}
+
 			if lastErr != nil {
-				log.Printf("[ERROR] %s deposit写入最终失败，txid=%s: %v", chainName, deposit.TxID, lastErr)
+				log.Printf("[ERROR] %s deposit写入最终失败，写入死信队列: txid=%s", chainName, deposit.TxID)
+				payload, _ := json.Marshal(params)
+				_ = queries.CreateDeadLetter(context.Background(), db.CreateDeadLetterParams{
+					Type:    chainName + "_deposit",
+					Payload: payload,
+					Error:   lastErr.Error(),
+					Retries: maxRetries,
+				})
 			}
 		}
 	}

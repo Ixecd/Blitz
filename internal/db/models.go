@@ -6,8 +6,20 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 )
+
+type DeadLetter struct {
+	ID        int64           `db:"id" json:"id"`
+	Type      string          `db:"type" json:"type"`
+	Payload   json.RawMessage `db:"payload" json:"payload"`
+	Error     string          `db:"error" json:"error"`
+	Retries   int32           `db:"retries" json:"retries"`
+	Resolved  bool            `db:"resolved" json:"resolved"`
+	CreatedAt sql.NullTime    `db:"created_at" json:"created_at"`
+	UpdatedAt sql.NullTime    `db:"updated_at" json:"updated_at"`
+}
 
 type Deposit struct {
 	ID        int64        `db:"id" json:"id"`

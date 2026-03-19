@@ -8,8 +8,31 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 )
+
+const createDeadLetter = `-- name: CreateDeadLetter :exec
+INSERT INTO dead_letters (type, payload, error, retries)
+VALUES ($1, $2, $3, $4)
+`
+
+type CreateDeadLetterParams struct {
+	Type    string          `db:"type" json:"type"`
+	Payload json.RawMessage `db:"payload" json:"payload"`
+	Error   string          `db:"error" json:"error"`
+	Retries int32           `db:"retries" json:"retries"`
+}
+
+func (q *Queries) CreateDeadLetter(ctx context.Context, arg CreateDeadLetterParams) error {
+	_, err := q.db.ExecContext(ctx, createDeadLetter,
+		arg.Type,
+		arg.Payload,
+		arg.Error,
+		arg.Retries,
+	)
+	return err
+}
 
 const createDeposit = `-- name: CreateDeposit :exec
 INSERT INTO deposits (tx_id, address, user_id, amount, height, confirmed, chain)
@@ -542,6 +565,44 @@ func (q *Queries) ListUnconfirmedDeposits(ctx context.Context) ([]Deposit, error
 	return items, nil
 }
 
+const listUnresolvedDeadLetters = `-- name: ListUnresolvedDeadLetters :many
+SELECT id, type, payload, error, retries, resolved, created_at, updated_at FROM dead_letters
+WHERE resolved = FALSE
+ORDER BY created_at ASC
+`
+
+func (q *Queries) ListUnresolvedDeadLetters(ctx context.Context) ([]DeadLetter, error) {
+	rows, err := q.db.QueryContext(ctx, listUnresolvedDeadLetters)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []DeadLetter
+	for rows.Next() {
+		var i DeadLetter
+		if err := rows.Scan(
+			&i.ID,
+			&i.Type,
+			&i.Payload,
+			&i.Error,
+			&i.Retries,
+			&i.Resolved,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWithdrawalsByUserID = `-- name: ListWithdrawalsByUserID :many
 SELECT id, tx_id, address, user_id, amount, fee, status, chain, created_at, updated_at FROM withdrawals WHERE user_id = $1 ORDER BY created_at DESC
 `
@@ -578,6 +639,17 @@ func (q *Queries) ListWithdrawalsByUserID(ctx context.Context, userID string) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const resolveDeadLetter = `-- name: ResolveDeadLetter :exec
+UPDATE dead_letters
+SET resolved = TRUE, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) ResolveDeadLetter(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, resolveDeadLetter, id)
+	return err
 }
 
 const revokeAllUserRefreshTokens = `-- name: RevokeAllUserRefreshTokens :exec

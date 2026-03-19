@@ -60,3 +60,14 @@ CREATE TABLE IF NOT EXISTS withdrawal_limits (
     min_deposit NUMERIC(20,8) NOT NULL DEFAULT 0,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS dead_letters (
+    id         BIGSERIAL PRIMARY KEY,
+    type       TEXT NOT NULL,
+    payload    JSONB NOT NULL,
+    error      TEXT NOT NULL,
+    retries    INTEGER NOT NULL DEFAULT 0,
+    resolved   BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
