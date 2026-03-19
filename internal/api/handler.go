@@ -12,6 +12,7 @@ import (
 	"github.com/Ixecd/web3-blitz/internal/auth"
 	"github.com/Ixecd/web3-blitz/internal/db"
 	"github.com/Ixecd/web3-blitz/internal/lock"
+	"github.com/Ixecd/web3-blitz/internal/pkg/code"
 	"github.com/Ixecd/web3-blitz/internal/wallet/btc"
 	"github.com/Ixecd/web3-blitz/internal/wallet/eth"
 	"github.com/Ixecd/web3-blitz/internal/wallet/types"
@@ -37,7 +38,7 @@ func NewHandler(btcWallet *btc.BTCWallet, ethWallet *eth.ETHWallet, queries *db.
 
 func (h *Handler) GenerateAddress(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -46,11 +47,11 @@ func (h *Handler) GenerateAddress(w http.ResponseWriter, r *http.Request) {
 		Chain  types.Chain `json:"chain"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "参数错误", http.StatusBadRequest)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 	if req.UserID == "" {
-		http.Error(w, "user_id 不能为空", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "user_id 不能为空")
 		return
 	}
 
@@ -63,21 +64,21 @@ func (h *Handler) GenerateAddress(w http.ResponseWriter, r *http.Request) {
 	case types.ChainETH:
 		resp, genErr = h.ethWallet.GenerateDepositAddress(r.Context(), req.UserID, req.Chain)
 	default:
-		http.Error(w, "不支持的链", http.StatusBadRequest)
+		Fail(w, code.ErrWalletChainNotSupported)
 		return
 	}
 
 	if genErr != nil {
-		http.Error(w, genErr.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, genErr.Error())
 		return
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	OK(w, resp)
 }
 
 func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "只支持 GET", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -85,7 +86,7 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	chainStr := r.URL.Query().Get("chain")
 
 	if address == "" || chainStr == "" {
-		http.Error(w, "缺少 address 或 chain 参数", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "缺少 address 或 chain 参数")
 		return
 	}
 
@@ -98,42 +99,42 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	case "eth":
 		resp, err = h.ethWallet.GetBalance(r.Context(), address, types.ChainETH)
 	default:
-		http.Error(w, "不支持的链", http.StatusBadRequest)
+		Fail(w, code.ErrWalletChainNotSupported)
 		return
 	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, err.Error())
 		return
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	OK(w, resp)
 }
 
 func (h *Handler) ListDeposits(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "只支持 GET", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		http.Error(w, "缺少 user_id 参数", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "缺少 user_id 参数")
 		return
 	}
 
 	deposits, err := h.queries.ListDepositsByUserID(r.Context(), userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, err.Error())
 		return
 	}
 
-	json.NewEncoder(w).Encode(deposits)
+	OK(w, deposits)
 }
 
 func (h *Handler) GetTotalBalance(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "只支持 GET", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -141,7 +142,7 @@ func (h *Handler) GetTotalBalance(w http.ResponseWriter, r *http.Request) {
 	chainStr := r.URL.Query().Get("chain")
 
 	if userID == "" || chainStr == "" {
-		http.Error(w, "缺少 user_id 或 chain 参数", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "缺少 user_id 或 chain 参数")
 		return
 	}
 
@@ -150,7 +151,7 @@ func (h *Handler) GetTotalBalance(w http.ResponseWriter, r *http.Request) {
 		Chain:  chainStr,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, err.Error())
 		return
 	}
 
@@ -161,7 +162,7 @@ func (h *Handler) GetTotalBalance(w http.ResponseWriter, r *http.Request) {
 		totalFloat, _ = total.(float64)
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	OK(w, map[string]interface{}{
 		"user_id": userID,
 		"chain":   chainStr,
 		"total":   totalFloat,
@@ -170,7 +171,7 @@ func (h *Handler) GetTotalBalance(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -181,45 +182,26 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		Chain     types.Chain `json:"chain"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "参数错误", http.StatusBadRequest)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 	if req.UserID == "" || req.ToAddress == "" || req.Amount <= 0 {
-		http.Error(w, "user_id / to_address / amount 不能为空或非正数", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "user_id / to_address / amount 不能为空或非正数")
 		return
 	}
 
 	ctx := r.Context()
 
+	// 分布式锁，防止重复提币
 	lockKey := fmt.Sprintf("withdraw:%s:%s", req.UserID, req.Chain)
 	l, err := h.locker.Acquire(ctx, lockKey)
 	if err != nil {
-		http.Error(w, "请勿重复提交: "+err.Error(), http.StatusTooManyRequests)
+		Fail(w, code.ErrWalletDuplicateWithdraw)
 		return
 	}
 	defer l.Release(context.Background())
 
-	// 已确认充值
-	rawDeposit, err := h.queries.GetTotalDepositByUserIDAndChain(ctx, db.GetTotalDepositByUserIDAndChainParams{
-		UserID: req.UserID,
-		Chain:  string(req.Chain),
-	})
-	if err != nil {
-		http.Error(w, "查询充值余额失败: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// 已完成提币
-	rawWithdrawal, err := h.queries.GetTotalWithdrawalByUserIDAndChain(ctx, db.GetTotalWithdrawalByUserIDAndChainParams{
-		UserID: req.UserID,
-		Chain:  string(req.Chain),
-	})
-	if err != nil {
-		http.Error(w, "查询提币余额失败: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// 类型转换（复用之前的模式）
+	// 类型转换
 	toFloat := func(v interface{}) float64 {
 		switch val := v.(type) {
 		case float64:
@@ -238,45 +220,61 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return 0
 	}
 
+	// 余额校验
+	rawDeposit, err := h.queries.GetTotalDepositByUserIDAndChain(ctx, db.GetTotalDepositByUserIDAndChainParams{
+		UserID: req.UserID,
+		Chain:  string(req.Chain),
+	})
+	if err != nil {
+		FailMsg(w, code.ErrInternal, "查询充值余额失败: "+err.Error())
+		return
+	}
+
+	rawWithdrawal, err := h.queries.GetTotalWithdrawalByUserIDAndChain(ctx, db.GetTotalWithdrawalByUserIDAndChainParams{
+		UserID: req.UserID,
+		Chain:  string(req.Chain),
+	})
+	if err != nil {
+		FailMsg(w, code.ErrInternal, "查询提币余额失败: "+err.Error())
+		return
+	}
+
 	available := toFloat(rawDeposit) - toFloat(rawWithdrawal)
 	if available < req.Amount {
-		http.Error(w, fmt.Sprintf("余额不足: 可用 %.8f，请求 %.8f", available, req.Amount), http.StatusBadRequest)
+		FailMsg(w, code.ErrWalletInsufficientBalance,
+			fmt.Sprintf("余额不足: 可用 %.8f，请求 %.8f", available, req.Amount))
 		return
 	}
 
-	// 从 JWT 取用户信息
+	// 限额校验
 	claims := auth.GetClaims(r)
 	if claims == nil {
-		http.Error(w, "无法获取用户信息", http.StatusUnauthorized)
+		Fail(w, code.ErrUnauthorized)
 		return
 	}
 
-	// 查用户等级
 	userLevel, err := h.queries.GetUserLevel(ctx, claims.UserID)
 	if err != nil {
-		http.Error(w, "查询用户等级失败: "+err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, "查询用户等级失败: "+err.Error())
 		return
 	}
 
-	// 查等级对应限额
 	limit, err := h.queries.GetWithdrawalLimit(ctx, int32(userLevel))
 	if err != nil {
-		http.Error(w, "查询提币限额失败: "+err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, "查询提币限额失败: "+err.Error())
 		return
 	}
 
-	// 查过去24小时已提币总额
 	rawUsed, err := h.queries.GetLast24hWithdrawalByUserAndChain(ctx, db.GetLast24hWithdrawalByUserAndChainParams{
 		UserID: req.UserID,
 		Chain:  string(req.Chain),
 	})
 	if err != nil {
-		http.Error(w, "查询提币额度失败: "+err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, "查询提币额度失败: "+err.Error())
 		return
 	}
 
 	usedToday := toFloat(rawUsed)
-
 	var dailyLimit float64
 	switch req.Chain {
 	case types.ChainBTC:
@@ -286,12 +284,13 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if usedToday+req.Amount > dailyLimit {
-		http.Error(w, fmt.Sprintf("超出每日提币限额: 已用 %.8f，本次 %.8f，限额 %.8f（%s）",
-			usedToday, req.Amount, dailyLimit, limit.LevelName), http.StatusBadRequest)
+		FailMsg(w, code.ErrWalletDailyLimitExceeded,
+			fmt.Sprintf("超出每日提币限额: 已用 %.8f，本次 %.8f，限额 %.8f（%s）",
+				usedToday, req.Amount, dailyLimit, limit.LevelName))
 		return
 	}
 
-	// 1. 写入 pending 记录，拿到 ID
+	// 写入 pending 记录
 	record, err := h.queries.CreateWithdrawal(ctx, db.CreateWithdrawalParams{
 		UserID:  req.UserID,
 		Address: req.ToAddress,
@@ -299,11 +298,11 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		Chain:   string(req.Chain),
 	})
 	if err != nil {
-		http.Error(w, "创建提币记录失败: "+err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, "创建提币记录失败: "+err.Error())
 		return
 	}
 
-	// 2. 广播交易
+	// 广播交易
 	var txID string
 	var fee float64
 	var broadcastErr error
@@ -316,11 +315,11 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		res, err := h.ethWallet.Withdraw(ctx, req.ToAddress, req.Amount)
 		txID, fee, broadcastErr = res.TxID, res.Fee, err
 	default:
-		http.Error(w, "不支持的链", http.StatusBadRequest)
+		Fail(w, code.ErrWalletChainNotSupported)
 		return
 	}
 
-	// 3. 更新 DB 状态
+	// 更新 DB 状态
 	status := "completed"
 	if broadcastErr != nil {
 		status = "failed"
@@ -335,11 +334,11 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if broadcastErr != nil {
-		http.Error(w, "提币失败: "+broadcastErr.Error(), http.StatusInternalServerError)
+		Fail(w, code.ErrWalletBroadcastFailed)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	OK(w, map[string]interface{}{
 		"id":         record.ID,
 		"tx_id":      txID,
 		"user_id":    req.UserID,
@@ -353,19 +352,19 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ListWithdrawals(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "只支持 GET", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		http.Error(w, "缺少 user_id 参数", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "缺少 user_id 参数")
 		return
 	}
 
 	withdrawals, err := h.queries.ListWithdrawalsByUserID(r.Context(), userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		FailMsg(w, code.ErrInternal, err.Error())
 		return
 	}
 
@@ -382,29 +381,29 @@ func (h *Handler) ListWithdrawals(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := make([]WithdrawalResp, 0, len(withdrawals))
-	for _, w := range withdrawals {
+	for _, wl := range withdrawals {
 		var amount, fee float64
-		fmt.Sscanf(w.Amount, "%f", &amount)
-		fmt.Sscanf(w.Fee, "%f", &fee)
+		fmt.Sscanf(wl.Amount, "%f", &amount)
+		fmt.Sscanf(wl.Fee, "%f", &fee)
 		resp = append(resp, WithdrawalResp{
-			ID:        w.ID,
-			TxID:      w.TxID.String,
-			Address:   w.Address,
-			UserID:    w.UserID,
+			ID:        wl.ID,
+			TxID:      wl.TxID.String,
+			Address:   wl.Address,
+			UserID:    wl.UserID,
 			Amount:    amount,
 			Fee:       fee,
-			Status:    w.Status,
-			Chain:     w.Chain,
-			CreatedAt: w.CreatedAt.Time.Format("2006-01-02 15:04:05"),
+			Status:    wl.Status,
+			Chain:     wl.Chain,
+			CreatedAt: wl.CreatedAt.Time.Format("2006-01-02 15:04:05"),
 		})
 	}
 
-	json.NewEncoder(w).Encode(resp)
+	OK(w, resp)
 }
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -413,21 +412,21 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "参数错误", http.StatusBadRequest)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 	if req.Username == "" || req.Password == "" {
-		http.Error(w, "username 和 password 不能为空", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "username 和 password 不能为空")
 		return
 	}
 	if len(req.Password) < 8 {
-		http.Error(w, "密码长度不能少于8位", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "密码长度不能少于8位")
 		return
 	}
 
 	hashed, err := auth.HashPassword(req.Password)
 	if err != nil {
-		http.Error(w, "密码加密失败", http.StatusInternalServerError)
+		Fail(w, code.ErrInternal)
 		return
 	}
 
@@ -436,11 +435,11 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		Password: hashed,
 	})
 	if err != nil {
-		http.Error(w, "用户名已存在", http.StatusConflict)
+		Fail(w, code.ErrUserAlreadyExists)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	OK(w, map[string]interface{}{
 		"id":       user.ID,
 		"username": user.Username,
 	})
@@ -448,7 +447,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -457,46 +456,44 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "参数错误", http.StatusBadRequest)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
 	user, err := h.queries.GetUserByUsername(r.Context(), req.Username)
 	if err != nil {
-		http.Error(w, "用户名或密码错误", http.StatusUnauthorized)
+		Fail(w, code.ErrUserPasswordWrong)
 		return
 	}
 
 	if !auth.CheckPassword(req.Password, user.Password) {
-		http.Error(w, "用户名或密码错误", http.StatusUnauthorized)
+		Fail(w, code.ErrUserPasswordWrong)
 		return
 	}
 
 	token, err := auth.GenerateToken(user.ID, user.Username, h.jwtSecret)
 	if err != nil {
-		http.Error(w, "生成 token 失败", http.StatusInternalServerError)
+		Fail(w, code.ErrInternal)
 		return
 	}
 
-	// 生成 refresh token
 	refreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
-		http.Error(w, "生成 refresh token 失败", http.StatusInternalServerError)
+		Fail(w, code.ErrInternal)
 		return
 	}
 
-	// 存入 DB
 	_, err = h.queries.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		Token:     refreshToken,
 		ExpiresAt: time.Now().Add(auth.RefreshTokenExpiry),
 	})
 	if err != nil {
-		http.Error(w, "保存 refresh token 失败", http.StatusInternalServerError)
+		Fail(w, code.ErrInternal)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	OK(w, map[string]interface{}{
 		"access_token":  token,
 		"refresh_token": refreshToken,
 		"username":      user.Username,
@@ -506,7 +503,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -514,53 +511,47 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {
-		http.Error(w, "缺少 refresh_token", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "缺少 refresh_token")
 		return
 	}
 
-	// 查询并验证 refresh token
 	rt, err := h.queries.GetRefreshToken(r.Context(), req.RefreshToken)
 	if err != nil {
-		http.Error(w, "refresh token 无效或已过期", http.StatusUnauthorized)
+		Fail(w, code.ErrUserRefreshTokenInvalid)
 		return
 	}
 
-	// 查询用户信息
 	user, err := h.queries.GetUserByID(r.Context(), rt.UserID)
 	if err != nil {
-		http.Error(w, "用户不存在", http.StatusUnauthorized)
+		Fail(w, code.ErrUserNotFound)
 		return
 	}
 
-	// 生成新 access token
 	accessToken, err := auth.GenerateToken(user.ID, user.Username, h.jwtSecret)
 	if err != nil {
-		http.Error(w, "生成 token 失败", http.StatusInternalServerError)
+		Fail(w, code.ErrInternal)
 		return
 	}
 
-	// 生成新 refresh token（旋转策略：旧的撤销，换新的）
 	newRefreshToken, err := auth.GenerateRefreshToken()
 	if err != nil {
-		http.Error(w, "生成 refresh token 失败", http.StatusInternalServerError)
+		Fail(w, code.ErrInternal)
 		return
 	}
 
-	// 撤销旧 refresh token
 	_ = h.queries.RevokeRefreshToken(r.Context(), req.RefreshToken)
 
-	// 存入新 refresh token
 	_, err = h.queries.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		Token:     newRefreshToken,
 		ExpiresAt: time.Now().Add(auth.RefreshTokenExpiry),
 	})
 	if err != nil {
-		http.Error(w, "保存 refresh token 失败", http.StatusInternalServerError)
+		Fail(w, code.ErrInternal)
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	OK(w, map[string]interface{}{
 		"access_token":  accessToken,
 		"refresh_token": newRefreshToken,
 		"username":      user.Username,
@@ -570,7 +561,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		Fail(w, code.ErrInvalidArg)
 		return
 	}
 
@@ -578,11 +569,11 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {
-		http.Error(w, "缺少 refresh_token", http.StatusBadRequest)
+		FailMsg(w, code.ErrInvalidArg, "缺少 refresh_token")
 		return
 	}
 
 	_ = h.queries.RevokeRefreshToken(r.Context(), req.RefreshToken)
 
-	json.NewEncoder(w).Encode(map[string]string{"message": "已退出登录"})
+	OK(w, map[string]string{"message": "已退出登录"})
 }
