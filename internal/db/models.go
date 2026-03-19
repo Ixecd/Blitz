@@ -42,6 +42,7 @@ type RefreshToken struct {
 
 type User struct {
 	ID        int64        `db:"id" json:"id"`
+	Level     int32        `db:"level" json:"level"`
 	Username  string       `db:"username" json:"username"`
 	Password  string       `db:"password" json:"password"`
 	CreatedAt sql.NullTime `db:"created_at" json:"created_at"`
@@ -59,4 +60,14 @@ type Withdrawal struct {
 	Chain     string         `db:"chain" json:"chain"`
 	CreatedAt sql.NullTime   `db:"created_at" json:"created_at"`
 	UpdatedAt sql.NullTime   `db:"updated_at" json:"updated_at"`
+}
+
+type WithdrawalLimit struct {
+	ID         int64        `db:"id" json:"id"`
+	Level      int32        `db:"level" json:"level"`
+	LevelName  string       `db:"level_name" json:"level_name"`
+	BtcDaily   string       `db:"btc_daily" json:"btc_daily"`
+	EthDaily   string       `db:"eth_daily" json:"eth_daily"`
+	MinDeposit string       `db:"min_deposit" json:"min_deposit"`
+	CreatedAt  sql.NullTime `db:"created_at" json:"created_at"`
 }

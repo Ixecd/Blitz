@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 
 CREATE TABLE IF NOT EXISTS users (
     id         BIGSERIAL PRIMARY KEY,
+    level      INTEGER NOT NULL DEFAULT 0,
     username   TEXT NOT NULL UNIQUE,
     password   TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -48,4 +49,14 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     expires_at TIMESTAMPTZ NOT NULL,
     revoked    BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS withdrawal_limits (
+    id          BIGSERIAL PRIMARY KEY,
+    level       INTEGER NOT NULL UNIQUE,
+    level_name  TEXT NOT NULL,
+    btc_daily   NUMERIC(20,8) NOT NULL,
+    eth_daily   NUMERIC(20,8) NOT NULL,
+    min_deposit NUMERIC(20,8) NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ DEFAULT NOW()
 );

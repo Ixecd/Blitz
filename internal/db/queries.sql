@@ -98,3 +98,20 @@ WHERE token = @token;
 UPDATE refresh_tokens
 SET revoked = TRUE
 WHERE user_id = @user_id;
+
+-- name: GetUserLevel :one
+SELECT level FROM users WHERE id = @id LIMIT 1;
+
+-- name: UpdateUserLevel :exec
+UPDATE users SET level = @level WHERE id = @id;
+
+-- name: GetWithdrawalLimit :one
+SELECT * FROM withdrawal_limits WHERE level = @level LIMIT 1;
+
+-- name: GetLast24hWithdrawalByUserAndChain :one
+SELECT COALESCE(SUM(amount), 0) as total
+FROM withdrawals
+WHERE user_id = @user_id
+  AND chain = @chain
+  AND status = 'completed'
+  AND created_at > NOW() - INTERVAL '24 hours';

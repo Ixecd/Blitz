@@ -17,12 +17,15 @@ type Querier interface {
 	GetAddressByAddress(ctx context.Context, address string) (DepositAddress, error)
 	GetAllChainsTotalDeposit(ctx context.Context) (interface{}, error)
 	GetDepositByTxID(ctx context.Context, txID string) (Deposit, error)
+	GetLast24hWithdrawalByUserAndChain(ctx context.Context, arg GetLast24hWithdrawalByUserAndChainParams) (interface{}, error)
 	GetRefreshToken(ctx context.Context, token string) (RefreshToken, error)
 	GetTotalDepositByChain(ctx context.Context, chain string) (interface{}, error)
 	GetTotalDepositByUserIDAndChain(ctx context.Context, arg GetTotalDepositByUserIDAndChainParams) (interface{}, error)
 	GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg GetTotalWithdrawalByUserIDAndChainParams) (interface{}, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GetUserLevel(ctx context.Context, id int64) (int32, error)
+	GetWithdrawalLimit(ctx context.Context, level int32) (WithdrawalLimit, error)
 	ListAddressesByUserID(ctx context.Context, userID string) ([]DepositAddress, error)
 	ListAllDepositAddresses(ctx context.Context) ([]DepositAddress, error)
 	ListDepositsByChain(ctx context.Context, chain string) ([]Deposit, error)
@@ -32,6 +35,7 @@ type Querier interface {
 	RevokeAllUserRefreshTokens(ctx context.Context, userID int64) error
 	RevokeRefreshToken(ctx context.Context, token string) error
 	UpdateDepositConfirmed(ctx context.Context, id int64) error
+	UpdateUserLevel(ctx context.Context, arg UpdateUserLevelParams) error
 	UpdateWithdrawalTx(ctx context.Context, arg UpdateWithdrawalTxParams) error
 }
 

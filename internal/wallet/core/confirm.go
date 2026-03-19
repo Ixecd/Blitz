@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -151,8 +152,44 @@ func (c *ConfirmChecker) check(ctx context.Context) {
 				log.Printf("[ERROR] 更新confirmed失败 id=%d: %v", d.ID, err)
 				continue
 			}
+			// 确认充值后检查是否需要升级用户等级
+			go c.checkAndUpgradeLevel(ctx, d.UserID)
 			log.Printf("✅ 充值已确认 id=%d chain=%s txid=%s (块高差=%d)",
 				d.ID, d.Chain, d.TxID, currentHeight-d.Height)
 		}
 	}
+}
+
+func (c *ConfirmChecker) checkAndUpgradeLevel(ctx context.Context, userID string) {
+	// 查询该用户所有链的累计确认充值总额（BTC 换算成 BTC 单位）
+	btcTotal, err := c.queries.GetTotalDepositByUserIDAndChain(ctx, db.GetTotalDepositByUserIDAndChainParams{
+		UserID: userID,
+		Chain:  "btc",
+	})
+	if err != nil {
+		return
+	}
+
+	var btcFloat float64
+	if v, ok := btcTotal.(string); ok {
+		fmt.Sscanf(v, "%f", &btcFloat)
+	}
+
+	// 根据累计充值判断等级
+	var newLevel int32
+	switch {
+	case btcFloat >= 50:
+		newLevel = 3
+	case btcFloat >= 10:
+		newLevel = 2
+	case btcFloat >= 1:
+		newLevel = 1
+	default:
+		newLevel = 0
+	}
+
+	// 查用户 ID（userID 是 string，需要找到对应的 int64）
+	// 注意：deposits.user_id 是 TEXT，users.id 是 BIGINT，需要额外查询
+	// 暂时跳过，等 user_id 统一后处理
+	log.Printf("📊 用户 %s 累计BTC充值 %.8f，建议等级 %d", userID, btcFloat, newLevel)
 }

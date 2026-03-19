@@ -191,18 +191,6 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	// 分布式锁，防止同一用户同一链并发提币
-	// lockKey := fmt.Sprintf("withdraw:lock:%s:%s", req.UserID, req.Chain)
-	// locked, err := h.redis.SetNX(ctx, lockKey, 1, 30*time.Second).Result()
-	// if err != nil {
-	// 	http.Error(w, "获取锁失败: "+err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	// if !locked {
-	// 	http.Error(w, "请勿重复提交，上一笔提币正在处理中", http.StatusTooManyRequests)
-	// 	return
-	// }
-	// defer h.redis.Del(ctx, lockKey)
 	lockKey := fmt.Sprintf("withdraw:%s:%s", req.UserID, req.Chain)
 	l, err := h.locker.Acquire(ctx, lockKey)
 	if err != nil {
@@ -253,6 +241,53 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	available := toFloat(rawDeposit) - toFloat(rawWithdrawal)
 	if available < req.Amount {
 		http.Error(w, fmt.Sprintf("余额不足: 可用 %.8f，请求 %.8f", available, req.Amount), http.StatusBadRequest)
+		return
+	}
+
+	// 从 JWT 取用户信息
+	claims := auth.GetClaims(r)
+	if claims == nil {
+		http.Error(w, "无法获取用户信息", http.StatusUnauthorized)
+		return
+	}
+
+	// 查用户等级
+	userLevel, err := h.queries.GetUserLevel(ctx, claims.UserID)
+	if err != nil {
+		http.Error(w, "查询用户等级失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 查等级对应限额
+	limit, err := h.queries.GetWithdrawalLimit(ctx, int32(userLevel))
+	if err != nil {
+		http.Error(w, "查询提币限额失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 查过去24小时已提币总额
+	rawUsed, err := h.queries.GetLast24hWithdrawalByUserAndChain(ctx, db.GetLast24hWithdrawalByUserAndChainParams{
+		UserID: req.UserID,
+		Chain:  string(req.Chain),
+	})
+	if err != nil {
+		http.Error(w, "查询提币额度失败: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	usedToday := toFloat(rawUsed)
+
+	var dailyLimit float64
+	switch req.Chain {
+	case types.ChainBTC:
+		fmt.Sscanf(limit.BtcDaily, "%f", &dailyLimit)
+	case types.ChainETH:
+		fmt.Sscanf(limit.EthDaily, "%f", &dailyLimit)
+	}
+
+	if usedToday+req.Amount > dailyLimit {
+		http.Error(w, fmt.Sprintf("超出每日提币限额: 已用 %.8f，本次 %.8f，限额 %.8f（%s）",
+			usedToday, req.Amount, dailyLimit, limit.LevelName), http.StatusBadRequest)
 		return
 	}
 

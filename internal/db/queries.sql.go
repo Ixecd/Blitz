@@ -91,7 +91,7 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (username, password)
 VALUES ($1, $2)
-RETURNING id, username, password, created_at, updated_at
+RETURNING id, level, username, password, created_at, updated_at
 `
 
 type CreateUserParams struct {
@@ -104,6 +104,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Level,
 		&i.Username,
 		&i.Password,
 		&i.CreatedAt,
@@ -201,6 +202,27 @@ func (q *Queries) GetDepositByTxID(ctx context.Context, txID string) (Deposit, e
 	return i, err
 }
 
+const getLast24hWithdrawalByUserAndChain = `-- name: GetLast24hWithdrawalByUserAndChain :one
+SELECT COALESCE(SUM(amount), 0) as total
+FROM withdrawals
+WHERE user_id = $1
+  AND chain = $2
+  AND status = 'completed'
+  AND created_at > NOW() - INTERVAL '24 hours'
+`
+
+type GetLast24hWithdrawalByUserAndChainParams struct {
+	UserID string `db:"user_id" json:"user_id"`
+	Chain  string `db:"chain" json:"chain"`
+}
+
+func (q *Queries) GetLast24hWithdrawalByUserAndChain(ctx context.Context, arg GetLast24hWithdrawalByUserAndChainParams) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, getLast24hWithdrawalByUserAndChain, arg.UserID, arg.Chain)
+	var total interface{}
+	err := row.Scan(&total)
+	return total, err
+}
+
 const getRefreshToken = `-- name: GetRefreshToken :one
 SELECT id, user_id, token, expires_at, revoked, created_at FROM refresh_tokens
 WHERE token = $1 AND revoked = FALSE AND expires_at > NOW()
@@ -271,7 +293,7 @@ func (q *Queries) GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg Ge
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, password, created_at, updated_at FROM users WHERE id = $1 LIMIT 1
+SELECT id, level, username, password, created_at, updated_at FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
@@ -279,6 +301,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Level,
 		&i.Username,
 		&i.Password,
 		&i.CreatedAt,
@@ -288,7 +311,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, password, created_at, updated_at FROM users WHERE username = $1 LIMIT 1
+SELECT id, level, username, password, created_at, updated_at FROM users WHERE username = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -296,10 +319,41 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Level,
 		&i.Username,
 		&i.Password,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getUserLevel = `-- name: GetUserLevel :one
+SELECT level FROM users WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserLevel(ctx context.Context, id int64) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getUserLevel, id)
+	var level int32
+	err := row.Scan(&level)
+	return level, err
+}
+
+const getWithdrawalLimit = `-- name: GetWithdrawalLimit :one
+SELECT id, level, level_name, btc_daily, eth_daily, min_deposit, created_at FROM withdrawal_limits WHERE level = $1 LIMIT 1
+`
+
+func (q *Queries) GetWithdrawalLimit(ctx context.Context, level int32) (WithdrawalLimit, error) {
+	row := q.db.QueryRowContext(ctx, getWithdrawalLimit, level)
+	var i WithdrawalLimit
+	err := row.Scan(
+		&i.ID,
+		&i.Level,
+		&i.LevelName,
+		&i.BtcDaily,
+		&i.EthDaily,
+		&i.MinDeposit,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -556,6 +610,20 @@ WHERE id = $1
 
 func (q *Queries) UpdateDepositConfirmed(ctx context.Context, id int64) error {
 	_, err := q.db.ExecContext(ctx, updateDepositConfirmed, id)
+	return err
+}
+
+const updateUserLevel = `-- name: UpdateUserLevel :exec
+UPDATE users SET level = $1 WHERE id = $2
+`
+
+type UpdateUserLevelParams struct {
+	Level int32 `db:"level" json:"level"`
+	ID    int64 `db:"id" json:"id"`
+}
+
+func (q *Queries) UpdateUserLevel(ctx context.Context, arg UpdateUserLevelParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserLevel, arg.Level, arg.ID)
 	return err
 }
 
