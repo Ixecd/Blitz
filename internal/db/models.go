@@ -6,6 +6,7 @@ package db
 
 import (
 	"database/sql"
+	"time"
 )
 
 type Deposit struct {
@@ -27,6 +28,15 @@ type DepositAddress struct {
 	Address   string       `db:"address" json:"address"`
 	Chain     string       `db:"chain" json:"chain"`
 	Path      string       `db:"path" json:"path"`
+	CreatedAt sql.NullTime `db:"created_at" json:"created_at"`
+}
+
+type RefreshToken struct {
+	ID        int64        `db:"id" json:"id"`
+	UserID    int64        `db:"user_id" json:"user_id"`
+	Token     string       `db:"token" json:"token"`
+	ExpiresAt time.Time    `db:"expires_at" json:"expires_at"`
+	Revoked   bool         `db:"revoked" json:"revoked"`
 	CreatedAt sql.NullTime `db:"created_at" json:"created_at"`
 }
 

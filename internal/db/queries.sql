@@ -78,3 +78,23 @@ SELECT * FROM users WHERE username = @username LIMIT 1;
 
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = @id LIMIT 1;
+
+-- name: CreateRefreshToken :one
+INSERT INTO refresh_tokens (user_id, token, expires_at)
+VALUES (@user_id, @token, @expires_at)
+RETURNING *;
+
+-- name: GetRefreshToken :one
+SELECT * FROM refresh_tokens
+WHERE token = @token AND revoked = FALSE AND expires_at > NOW()
+LIMIT 1;
+
+-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET revoked = TRUE
+WHERE token = @token;
+
+-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked = TRUE
+WHERE user_id = @user_id;

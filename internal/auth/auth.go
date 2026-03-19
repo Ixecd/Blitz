@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -9,7 +11,8 @@ import (
 )
 
 const (
-	tokenExpiry = 24 * time.Hour
+	tokenExpiry        = 24 * time.Hour
+	RefreshTokenExpiry = 7 * 24 * time.Hour
 )
 
 type Claims struct {
@@ -62,4 +65,13 @@ func ParseToken(tokenStr, secret string) (*Claims, error) {
 		return nil, fmt.Errorf("token 无效")
 	}
 	return claims, nil
+}
+
+// GenerateRefreshToken 生成随机 refresh token
+func GenerateRefreshToken() (string, error) {
+	bytes := make([]byte, 32)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("生成 refresh token 失败: %w", err)
+	}
+	return hex.EncodeToString(bytes), nil
 }

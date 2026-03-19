@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/Ixecd/web3-blitz/internal/auth"
 	"github.com/Ixecd/web3-blitz/internal/db"
@@ -442,9 +443,111 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"token":    token,
-		"username": user.Username,
-		"user_id":  user.ID,
+	// 生成 refresh token
+	refreshToken, err := auth.GenerateRefreshToken()
+	if err != nil {
+		http.Error(w, "生成 refresh token 失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 存入 DB
+	_, err = h.queries.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
+		UserID:    user.ID,
+		Token:     refreshToken,
+		ExpiresAt: time.Now().Add(auth.RefreshTokenExpiry),
 	})
+	if err != nil {
+		http.Error(w, "保存 refresh token 失败", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"access_token":  token,
+		"refresh_token": refreshToken,
+		"username":      user.Username,
+		"user_id":       user.ID,
+	})
+}
+
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {
+		http.Error(w, "缺少 refresh_token", http.StatusBadRequest)
+		return
+	}
+
+	// 查询并验证 refresh token
+	rt, err := h.queries.GetRefreshToken(r.Context(), req.RefreshToken)
+	if err != nil {
+		http.Error(w, "refresh token 无效或已过期", http.StatusUnauthorized)
+		return
+	}
+
+	// 查询用户信息
+	user, err := h.queries.GetUserByID(r.Context(), rt.UserID)
+	if err != nil {
+		http.Error(w, "用户不存在", http.StatusUnauthorized)
+		return
+	}
+
+	// 生成新 access token
+	accessToken, err := auth.GenerateToken(user.ID, user.Username, h.jwtSecret)
+	if err != nil {
+		http.Error(w, "生成 token 失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 生成新 refresh token（旋转策略：旧的撤销，换新的）
+	newRefreshToken, err := auth.GenerateRefreshToken()
+	if err != nil {
+		http.Error(w, "生成 refresh token 失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 撤销旧 refresh token
+	_ = h.queries.RevokeRefreshToken(r.Context(), req.RefreshToken)
+
+	// 存入新 refresh token
+	_, err = h.queries.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
+		UserID:    user.ID,
+		Token:     newRefreshToken,
+		ExpiresAt: time.Now().Add(auth.RefreshTokenExpiry),
+	})
+	if err != nil {
+		http.Error(w, "保存 refresh token 失败", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"access_token":  accessToken,
+		"refresh_token": newRefreshToken,
+		"username":      user.Username,
+		"user_id":       user.ID,
+	})
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "只支持 POST", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {
+		http.Error(w, "缺少 refresh_token", http.StatusBadRequest)
+		return
+	}
+
+	_ = h.queries.RevokeRefreshToken(r.Context(), req.RefreshToken)
+
+	json.NewEncoder(w).Encode(map[string]string{"message": "已退出登录"})
 }

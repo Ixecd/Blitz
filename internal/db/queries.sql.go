@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 const createDeposit = `-- name: CreateDeposit :exec
@@ -59,6 +60,32 @@ func (q *Queries) CreateDepositAddress(ctx context.Context, arg CreateDepositAdd
 		arg.Path,
 	)
 	return err
+}
+
+const createRefreshToken = `-- name: CreateRefreshToken :one
+INSERT INTO refresh_tokens (user_id, token, expires_at)
+VALUES ($1, $2, $3)
+RETURNING id, user_id, token, expires_at, revoked, created_at
+`
+
+type CreateRefreshTokenParams struct {
+	UserID    int64     `db:"user_id" json:"user_id"`
+	Token     string    `db:"token" json:"token"`
+	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
+}
+
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, createRefreshToken, arg.UserID, arg.Token, arg.ExpiresAt)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const createUser = `-- name: CreateUser :one
@@ -170,6 +197,26 @@ func (q *Queries) GetDepositByTxID(ctx context.Context, txID string) (Deposit, e
 		&i.Chain,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getRefreshToken = `-- name: GetRefreshToken :one
+SELECT id, user_id, token, expires_at, revoked, created_at FROM refresh_tokens
+WHERE token = $1 AND revoked = FALSE AND expires_at > NOW()
+LIMIT 1
+`
+
+func (q *Queries) GetRefreshToken(ctx context.Context, token string) (RefreshToken, error) {
+	row := q.db.QueryRowContext(ctx, getRefreshToken, token)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -477,6 +524,28 @@ func (q *Queries) ListWithdrawalsByUserID(ctx context.Context, userID string) ([
 		return nil, err
 	}
 	return items, nil
+}
+
+const revokeAllUserRefreshTokens = `-- name: RevokeAllUserRefreshTokens :exec
+UPDATE refresh_tokens
+SET revoked = TRUE
+WHERE user_id = $1
+`
+
+func (q *Queries) RevokeAllUserRefreshTokens(ctx context.Context, userID int64) error {
+	_, err := q.db.ExecContext(ctx, revokeAllUserRefreshTokens, userID)
+	return err
+}
+
+const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET revoked = TRUE
+WHERE token = $1
+`
+
+func (q *Queries) RevokeRefreshToken(ctx context.Context, token string) error {
+	_, err := q.db.ExecContext(ctx, revokeRefreshToken, token)
+	return err
 }
 
 const updateDepositConfirmed = `-- name: UpdateDepositConfirmed :exec

@@ -20,6 +20,8 @@ func NewMux(h *Handler, jwtSecret string) *http.ServeMux {
 	mux.HandleFunc("/api/v1/deposits", h.ListDeposits)
 	mux.HandleFunc("/api/v1/balance/total", h.GetTotalBalance)
 	mux.HandleFunc("/api/v1/withdrawals", h.ListWithdrawals)
+	mux.HandleFunc("/api/v1/refresh", h.Refresh)
+	mux.HandleFunc("/api/v1/logout", h.Logout)
 
 	// 需要 JWT 保护的接口
 	mux.HandleFunc("/api/v1/withdraw", auth.JWTMiddleware(jwtSecret, h.Withdraw))

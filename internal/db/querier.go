@@ -11,11 +11,13 @@ import (
 type Querier interface {
 	CreateDeposit(ctx context.Context, arg CreateDepositParams) error
 	CreateDepositAddress(ctx context.Context, arg CreateDepositAddressParams) error
+	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateWithdrawal(ctx context.Context, arg CreateWithdrawalParams) (Withdrawal, error)
 	GetAddressByAddress(ctx context.Context, address string) (DepositAddress, error)
 	GetAllChainsTotalDeposit(ctx context.Context) (interface{}, error)
 	GetDepositByTxID(ctx context.Context, txID string) (Deposit, error)
+	GetRefreshToken(ctx context.Context, token string) (RefreshToken, error)
 	GetTotalDepositByChain(ctx context.Context, chain string) (interface{}, error)
 	GetTotalDepositByUserIDAndChain(ctx context.Context, arg GetTotalDepositByUserIDAndChainParams) (interface{}, error)
 	GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg GetTotalWithdrawalByUserIDAndChainParams) (interface{}, error)
@@ -27,6 +29,8 @@ type Querier interface {
 	ListDepositsByUserID(ctx context.Context, userID string) ([]Deposit, error)
 	ListUnconfirmedDeposits(ctx context.Context) ([]Deposit, error)
 	ListWithdrawalsByUserID(ctx context.Context, userID string) ([]Withdrawal, error)
+	RevokeAllUserRefreshTokens(ctx context.Context, userID int64) error
+	RevokeRefreshToken(ctx context.Context, token string) error
 	UpdateDepositConfirmed(ctx context.Context, id int64) error
 	UpdateWithdrawalTx(ctx context.Context, arg UpdateWithdrawalTxParams) error
 }
