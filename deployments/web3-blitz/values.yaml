@@ -165,6 +165,8 @@ env:
     value: "bitcoind:18443/wallet/blitz_wallet"
   - name: ETH_RPC_HOST
     value: "http://geth:8545"
+  - name: DATABASE_URL
+    value: "postgres://blitz:blitz@postgres-postgresql:5432/blitz?sslmode=disable&search_path=public"
 
 walletService:
   replicaCount: 1

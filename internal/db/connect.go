@@ -2,20 +2,24 @@ package db
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
 	"log/slog"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+//go:embed migrations/*.sql
+var migrationsFS embed.FS
 
 func NewDB() (*sql.DB, error) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable"
+		dsn = "postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable&search_path=public"
 	}
 
 	database, err := sql.Open("pgx", dsn)
@@ -35,9 +39,9 @@ func NewDB() (*sql.DB, error) {
 }
 
 func runMigrations(database *sql.DB) error {
-	migrationsPath := os.Getenv("MIGRATIONS_PATH")
-	if migrationsPath == "" {
-		migrationsPath = "internal/db/migrations"
+	src, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("migrate source: %w", err)
 	}
 
 	driver, err := postgres.WithInstance(database, &postgres.Config{})
@@ -45,11 +49,7 @@ func runMigrations(database *sql.DB) error {
 		return fmt.Errorf("migrate driver: %w", err)
 	}
 
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://"+migrationsPath,
-		"postgres",
-		driver,
-	)
+	m, err := migrate.NewWithInstance("iofs", src, "postgres", driver)
 	if err != nil {
 		return fmt.Errorf("migrate init: %w", err)
 	}
@@ -61,16 +61,4 @@ func runMigrations(database *sql.DB) error {
 	v, _, _ := m.Version()
 	slog.Info("数据库迁移完成", "version", v)
 	return nil
-}
-
-func runSeed(db *sql.DB) error {
-	seed := `
-INSERT INTO withdrawal_limits (level, level_name, btc_daily, eth_daily, min_deposit) VALUES
-(0, '普通用户',  '2.00000000',   '50.00000000',   '0.00000000'),
-(1, '白银用户',  '10.00000000',  '200.00000000',  '1.00000000'),
-(2, '黄金用户',  '50.00000000',  '1000.00000000', '10.00000000'),
-(3, '钻石用户',  '200.00000000', '5000.00000000', '50.00000000')
-ON CONFLICT (level) DO NOTHING;`
-	_, err := db.Exec(seed)
-	return err
 }

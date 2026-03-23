@@ -7,16 +7,19 @@
 
 ## 🔴 高优先级
 
+### K8s 部署（下次第一件事）
+- [ ] `values.yaml` `walletService.env` 加 `DATABASE_URL`，重新 `dtk deploy`
+- [ ] 验证 wallet-service pod 正常启动，迁移自动执行
+- [ ] 查 `web3-blitz` pod 重启原因
+
 ### 工程
-- [ ] RBAC 角色初始化移入迁移文件（`000001_init.up.sql` 已包含，`runSeed` 可以删了）
 - [ ] etcd 旧 registry 数据清理
-- [ ] `connect.go` 里遗留的 `runSeed` 函数删除（seed 已在 migration 里）
-- [ ] 把 debug 用的临时代码从 `connect.go` 里清理（`current_database` 查询等）
+- [ ] `handler.go` 拆分：auth、wallet、admin 各自独立文件
 
 ### 功能
-- [ ] 记住我 — cookie 方案（当前用 localStorage/sessionStorage，考虑 httpOnly cookie 更安全）
-- [ ] 忘记密码 — 限流（同一邮箱 1 分钟内只能发一次）
-- [ ] 注册 — 邮箱验证码验证
+- [ ] 忘记密码限流（同一邮箱 1 分钟内只能发一次）
+- [ ] 注册邮箱验证码验证
+- [ ] refresh token 自动续期（前端拦截 401 自动刷新）
 
 ---
 
@@ -30,12 +33,12 @@
 
 ### 功能
 - [ ] 扫码登录
-- [ ] refresh token 自动续期（前端拦截 401 自动刷新）
 - [ ] 登出时踢掉所有设备选项
 
-### 工程
-- [ ] `handler.go` 拆分：auth、wallet、admin 各自独立文件
-- [ ] 统一错误码文档（`internal/pkg/code/` 补全所有错误码说明）
+### K8s
+- [ ] wallet-service 环境变量改用 K8s Secret（DATABASE_URL、JWT_SECRET、SMTP_PASS 不应明文写在 values.yaml）
+- [ ] SMTP 配置注入（SMTP_HOST / SMTP_USER / SMTP_PASS / SMTP_FROM）
+- [ ] etcd 部署到 K8s
 
 ---
 
@@ -61,12 +64,13 @@
 - [x] RBAC 权限系统（roles / permissions / user_roles）
 - [x] 管理后台基础（用户列表、等级升级、限额配置）
 - [x] slog 结构化日志（JSON，LOG_LEVEL=debug）
-- [x] `register` / `login` 改用 email
+- [x] register / login 改用 email
 - [x] 忘记密码全链路（QQ 邮箱 SMTP）
 - [x] 注册新账号（Login 页内联切换）
 - [x] 记住我（localStorage / sessionStorage 切换）
-- [x] golang-migrate 数据库迁移（替代手写 DDL）
+- [x] golang-migrate + embed.FS（迁移文件打进二进制，启动自动执行）
 - [x] server.go → mux.go 改名
+- [x] K8s postgres（Bitnami）部署完成
 
 ---
 
