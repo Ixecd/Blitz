@@ -26,6 +26,7 @@ type Querier interface {
 	GetTotalDepositByChain(ctx context.Context, chain string) (interface{}, error)
 	GetTotalDepositByUserIDAndChain(ctx context.Context, arg GetTotalDepositByUserIDAndChainParams) (interface{}, error)
 	GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg GetTotalWithdrawalByUserIDAndChainParams) (interface{}, error)
+	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUserLevel(ctx context.Context, id int64) (int32, error)

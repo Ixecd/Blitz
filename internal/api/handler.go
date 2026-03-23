@@ -23,15 +23,17 @@ type Handler struct {
 	btcWallet *btc.BTCWallet
 	ethWallet *eth.ETHWallet
 	queries   *db.Queries
+	db        *sql.DB
 	locker    *lock.DistributedLock
 	jwtSecret string
 }
 
-func NewHandler(btcWallet *btc.BTCWallet, ethWallet *eth.ETHWallet, queries *db.Queries, locker *lock.DistributedLock, jwtSecret string) *Handler {
+func NewHandler(btcWallet *btc.BTCWallet, ethWallet *eth.ETHWallet, queries *db.Queries, db *sql.DB, locker *lock.DistributedLock, jwtSecret string) *Handler {
 	return &Handler{
 		btcWallet: btcWallet,
 		ethWallet: ethWallet,
 		queries:   queries,
+		db:        db,
 		locker:    locker,
 		jwtSecret: jwtSecret,
 	}
@@ -413,19 +415,19 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Fail(w, code.ErrInvalidArg)
 		return
 	}
-	if req.Username == "" || req.Password == "" {
-		FailMsg(w, code.ErrInvalidArg, "username 和 password 不能为空")
+	if req.Email == "" || req.Password == "" {
+		FailMsg(w, code.ErrInvalidArg, "email 和 password 不能为空")
 		return
 	}
 	if len(req.Password) < 8 {
-		FailMsg(w, code.ErrInvalidArg, "密码长度不能少于8位")
+		FailMsg(w, code.ErrInvalidArg, "密码长度不能少于 8 位")
 		return
 	}
 
@@ -435,18 +437,35 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rows, _ := h.db.QueryContext(r.Context(), "SELECT id, username, email FROM users")
+	for rows.Next() {
+		var id int64
+		var u, e string
+		rows.Scan(&id, &u, &e)
+		log.Printf("[DEBUG] user记录: id=%d u=%s e=%s", id, u, e)
+	}
+	rows.Close()
+
+	var cnt int
+	h.db.QueryRowContext(r.Context(), "SELECT COUNT(*) FROM users WHERE username=$1", req.Email).Scan(&cnt)
+	log.Printf("[DEBUG] 注册前 username=%s 已存在: %d", req.Email, cnt)
+
+	log.Printf("[DEBUG] 注册请求: email=%s", req.Email)
 	user, err := h.queries.CreateUser(r.Context(), db.CreateUserParams{
-		Username: req.Username,
+		Username: req.Email, // username 复用 email
+		Email:    req.Email,
 		Password: hashed,
 	})
 	if err != nil {
-		Fail(w, code.ErrUserAlreadyExists)
+		log.Printf("[ERROR] CreateUser 失败: %v", err)
+		FailMsg(w, code.ErrInternal, err.Error()) // 临时改成这个
 		return
 	}
+	log.Printf("[DEBUG] 注册成功: id=%d email=%s", user.ID, user.Email)
 
 	OK(w, map[string]interface{}{
-		"id":       user.ID,
-		"username": user.Username,
+		"id":    user.ID,
+		"email": user.Email,
 	})
 }
 
@@ -457,15 +476,19 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Username string `json:"username"`
+		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Fail(w, code.ErrInvalidArg)
 		return
 	}
+	if req.Email == "" || req.Password == "" {
+		FailMsg(w, code.ErrInvalidArg, "email 和 password 不能为空")
+		return
+	}
 
-	user, err := h.queries.GetUserByUsername(r.Context(), req.Username)
+	user, err := h.queries.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		Fail(w, code.ErrUserPasswordWrong)
 		return
@@ -501,7 +524,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	OK(w, map[string]interface{}{
 		"access_token":  token,
 		"refresh_token": refreshToken,
-		"username":      user.Username,
+		"email":         user.Email,
 		"user_id":       user.ID,
 	})
 }

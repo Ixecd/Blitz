@@ -3,15 +3,16 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-func NewDB(path string) (*sql.DB, error) {
+func NewDB() (*sql.DB, error) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable"
+		dsn = "postgres://blitz:blitz@192.168.117.2:5432/blitz?sslmode=disable"
 	}
 
 	db, err := sql.Open("pgx", dsn)
@@ -21,9 +22,22 @@ func NewDB(path string) (*sql.DB, error) {
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping db: %w", err)
 	}
+	db.Exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`)
+	db.Exec(`UPDATE users SET email = username WHERE email IS NULL`)
+	db.Exec(`ALTER TABLE users ALTER COLUMN email SET NOT NULL`)
 	if err := runSeed(db); err != nil {
 		return nil, fmt.Errorf("seed db: %w", err)
 	}
+
+	var dbName string
+	db.QueryRow("SELECT current_database()").Scan(&dbName)
+	log.Printf("[DEBUG] DSN: %s", dsn)
+	log.Printf("[DEBUG] 实际连接数据库: %s", dbName)
+
+	var hasEmail bool
+	db.QueryRow("SELECT EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='email')").Scan(&hasEmail)
+	log.Printf("[DEBUG] users.email 存在: %v", hasEmail)
+
 	return db, nil
 }
 

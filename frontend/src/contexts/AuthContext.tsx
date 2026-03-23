@@ -3,12 +3,12 @@ import { api } from '@/api/client'
 
 interface AuthState {
   token:    string | null
-  username: string | null
+  email: string | null
   userID:   number | null
 }
 
 interface AuthContextValue extends AuthState {
-  login:  (username: string, password: string) => Promise<void>
+  login:  (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -17,24 +17,24 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     token:    localStorage.getItem('access_token'),
-    username: localStorage.getItem('username'),
+    email: localStorage.getItem('email'),
     userID:   Number(localStorage.getItem('user_id')) || null,
   })
 
-  const login = useCallback(async (username: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     const data = await api.post<{
       access_token:  string
       refresh_token: string
-      username:      string
+      email:      string
       user_id:       number
-    }>('/api/v1/login', { username, password })
+    }>('/api/v1/login', { email, password })
 
     localStorage.setItem('access_token',  data.access_token)
     localStorage.setItem('refresh_token', data.refresh_token)
-    localStorage.setItem('username',      data.username)
+    localStorage.setItem('email',      data.email)
     localStorage.setItem('user_id',       String(data.user_id))
 
-    setState({ token: data.access_token, username: data.username, userID: data.user_id })
+    setState({ token: data.access_token, email: data.email, userID: data.user_id })
   }, [])
 
   const logout = useCallback(async () => {
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await api.post('/api/v1/logout', { refresh_token: rt }).catch(() => {})
     }
     localStorage.clear()
-    setState({ token: null, username: null, userID: null })
+    setState({ token: null, email: null, userID: null })
   }, [])
 
   return (

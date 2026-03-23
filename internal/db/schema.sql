@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
     id         BIGSERIAL PRIMARY KEY,
     level      INTEGER NOT NULL DEFAULT 0,
     username   TEXT NOT NULL UNIQUE,
+    email      TEXT NOT NULL UNIQUE,
     password   TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -101,3 +102,24 @@ CREATE TABLE IF NOT EXISTS user_roles (
     role_id BIGINT NOT NULL REFERENCES roles(id),
     PRIMARY KEY (user_id, role_id)
 );
+
+-- 初始化角色
+INSERT INTO roles (name, description) VALUES
+('admin', '管理员'),
+('operator', '运营'),
+('user', '普通用户')
+ON CONFLICT (name) DO NOTHING;
+
+-- 初始化权限
+INSERT INTO permissions (name, description) VALUES
+('user:read', '查看用户列表'),
+('user:upgrade', '升级用户等级'),
+('limit:read', '查看提币限额'),
+('limit:write', '修改提币限额')
+ON CONFLICT (name) DO NOTHING;
+
+-- admin 角色绑定所有权限
+INSERT INTO role_permissions (role_id, permission_id)
+SELECT r.id, p.id FROM roles r, permissions p
+WHERE r.name = 'admin'
+ON CONFLICT DO NOTHING;

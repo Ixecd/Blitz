@@ -128,23 +128,25 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 }
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (username, password)
-VALUES ($1, $2)
-RETURNING id, level, username, password, created_at, updated_at
+INSERT INTO users (username, email, password)
+VALUES ($1, $2, $3)
+RETURNING id, level, username, email, password, created_at, updated_at
 `
 
 type CreateUserParams struct {
 	Username string `db:"username" json:"username"`
+	Email    string `db:"email" json:"email"`
 	Password string `db:"password" json:"password"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRowContext(ctx, createUser, arg.Username, arg.Password)
+	row := q.db.QueryRowContext(ctx, createUser, arg.Username, arg.Email, arg.Password)
 	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Level,
 		&i.Username,
+		&i.Email,
 		&i.Password,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -381,8 +383,27 @@ func (q *Queries) GetTotalWithdrawalByUserIDAndChain(ctx context.Context, arg Ge
 	return total, err
 }
 
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, level, username, email, password, created_at, updated_at FROM users WHERE email = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Level,
+		&i.Username,
+		&i.Email,
+		&i.Password,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, level, username, password, created_at, updated_at FROM users WHERE id = $1 LIMIT 1
+SELECT id, level, username, email, password, created_at, updated_at FROM users WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
@@ -392,6 +413,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.ID,
 		&i.Level,
 		&i.Username,
+		&i.Email,
 		&i.Password,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -400,7 +422,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, level, username, password, created_at, updated_at FROM users WHERE username = $1 LIMIT 1
+SELECT id, level, username, email, password, created_at, updated_at FROM users WHERE username = $1 LIMIT 1
 `
 
 func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
@@ -410,6 +432,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.ID,
 		&i.Level,
 		&i.Username,
+		&i.Email,
 		&i.Password,
 		&i.CreatedAt,
 		&i.UpdatedAt,

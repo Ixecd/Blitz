@@ -11,14 +11,14 @@ import {
 import ThemeSwitcher from '@/components/ThemeSwitcher'
 
 const nav = [
-  { to: '/',         label: '总览',  icon: LayoutDashboard, end: true  },
-  { to: '/deposit',  label: '充值',  icon: ArrowDownToLine, end: false },
-  { to: '/withdraw', label: '提币',  icon: ArrowUpFromLine, end: false },
-  { to: '/admin',    label: '管理',  icon: ShieldCheck,     end: false },
+  { to: '/', label: '总览', icon: LayoutDashboard, end: true },
+  { to: '/deposit', label: '充值', icon: ArrowDownToLine, end: false },
+  { to: '/withdraw', label: '提币', icon: ArrowUpFromLine, end: false },
+  { to: '/admin', label: '管理', icon: ShieldCheck, end: false },
 ]
 
 export default function Layout() {
-  const { username, logout } = useAuth()
+  const { email, logout } = useAuth()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -45,12 +45,12 @@ export default function Layout() {
           style={{ borderColor: 'var(--color-border)' }}
         >
           <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            className="w-9 h-9 rounded-lg flex items-center justify-center"
             style={{ backgroundColor: 'var(--color-accent)' }}
           >
-            <Zap size={14} style={{ color: 'var(--color-base)' }} strokeWidth={2.5} />
+            <Zap size={16} style={{ color: 'var(--color-base)' }} strokeWidth={2.5} />
           </div>
-          <span className="font-display font-bold text-base tracking-tight">
+          <span className="font-display font-bold text-base tracking-tight" style={{ color: 'var(--color-text-primary)' }}>
             BLITZ
           </span>
         </div>
@@ -93,11 +93,8 @@ export default function Layout() {
           style={{ borderColor: 'var(--color-border)' }}
         >
           <div className="px-3 py-1.5">
-            <p className="text-xs font-mono" style={{ color: 'var(--color-text-faint)' }}>
-              已登录
-            </p>
             <p className="text-sm font-mono truncate" style={{ color: 'var(--color-text-primary)' }}>
-              {username}
+              {email}
             </p>
           </div>
           <button

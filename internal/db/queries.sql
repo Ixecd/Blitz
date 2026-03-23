@@ -69,12 +69,15 @@ FROM withdrawals
 WHERE user_id = @user_id AND chain = @chain AND status = 'completed';
 
 -- name: CreateUser :one
-INSERT INTO users (username, password)
-VALUES (@username, @password)
+INSERT INTO users (username, email, password)
+VALUES (@username, @email, @password)
 RETURNING *;
 
 -- name: GetUserByUsername :one
 SELECT * FROM users WHERE username = @username LIMIT 1;
+
+-- name: GetUserByEmail :one
+SELECT * FROM users WHERE email = @email LIMIT 1;
 
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = @id LIMIT 1;

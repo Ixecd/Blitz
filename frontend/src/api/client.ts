@@ -18,7 +18,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res  = await fetch(BASE + path, { ...options, headers })
   const json = await res.json()
 
-  if (json.code !== 0) {
+  if (json.code !== undefined && json.code !== 0) {
     throw new ApiError(json.code, json.message ?? '请求失败')
   }
   return json.data as T

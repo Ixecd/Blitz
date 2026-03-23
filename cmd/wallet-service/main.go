@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// 持久层，基础设施
-	database, err := db.NewDB("./blitz.db")
+	database, err := db.NewDB()
 	if err != nil {
 		log.Fatal("DB初始化失败:", err)
 	}
@@ -75,6 +75,11 @@ func main() {
 			registry.Register(a.Address, a.UserID)
 		}
 		log.Printf("✅ 从DB恢复了 %d 个充值地址", len(addrs))
+	}
+
+	for _, a := range addrs {
+		registry.Register(a.Address, a.UserID)
+		log.Printf("[DEBUG] 恢复地址: %s user=%s", a.Address, a.UserID) // 加这行
 	}
 
 	btcRPCHost := os.Getenv("BTC_RPC_HOST")
@@ -126,7 +131,7 @@ func main() {
 	}
 
 	// h := api.NewHandler(btcWallet, ethWallet, queries, redisClient)
-	h := api.NewHandler(btcWallet, ethWallet, queries, locker, jwtSecret)
+	h := api.NewHandler(btcWallet, ethWallet, queries, database, locker, jwtSecret)
 	mux := api.NewMux(h, jwtSecret, queries)
 
 	go confirmChecker.Start(ctx)
