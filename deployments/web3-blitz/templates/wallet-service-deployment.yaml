@@ -15,6 +15,13 @@ spec:
       labels:
         app: wallet-service
     spec:
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done']
+        - name: wait-etcd
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z etcd 2379; do echo waiting for etcd; sleep 2; done']
       containers:
         - name: wallet-service
           image: "{{ .Values.walletService.image.repository }}:{{ .Values.walletService.image.tag | default .Chart.AppVersion }}"
