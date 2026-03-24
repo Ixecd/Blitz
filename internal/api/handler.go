@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"github.com/Ixecd/web3-blitz/internal/auth"
+	"github.com/Ixecd/web3-blitz/internal/code"
 	"github.com/Ixecd/web3-blitz/internal/db"
 	"github.com/Ixecd/web3-blitz/internal/email"
 	"github.com/Ixecd/web3-blitz/internal/lock"
 	"github.com/Ixecd/web3-blitz/internal/metrics"
-	"github.com/Ixecd/web3-blitz/internal/pkg/code"
 	"github.com/Ixecd/web3-blitz/internal/wallet/btc"
 	"github.com/Ixecd/web3-blitz/internal/wallet/eth"
 	"github.com/Ixecd/web3-blitz/internal/wallet/types"
