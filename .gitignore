@@ -15,3 +15,4 @@ secrets/
 *.db
 infra1.etcd/
 .etcd/
+data/

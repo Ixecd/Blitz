@@ -36,9 +36,16 @@ jobs:
           go-version: '1.25'
           cache: true
 
+      - name: Install migrate
+        run: |
+          curl -L https://github.com/golang-migrate/migrate/releases/download/v4.18.1/migrate.linux-amd64.tar.gz | tar xz
+          sudo mv migrate /usr/local/bin/
+
       - name: Init DB schema
         run: |
-          PGPASSWORD=blitz psql -h localhost -U blitz -d blitz -f internal/db/schema.sql
+          migrate -path internal/db/migrations \
+                  -database "postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable&search_path=public" \
+                  up
 
       - name: Build
         run: go build ./...
@@ -49,7 +56,7 @@ jobs:
       - name: Test
         run: go test ./...
         env:
-          DATABASE_URL: postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable
+          DATABASE_URL: postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable&search_path=public
 
       - name: Docker build
         run: |
