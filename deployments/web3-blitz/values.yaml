@@ -183,3 +183,5 @@ walletService:
       value: "postgres://blitz:blitz@postgres:5432/blitz?sslmode=disable&search_path=public"
     - name: ETCD_ENDPOINTS
       value: "etcd:2379"
+    - name: ADMIN_EMAIL
+      value: "test@blitz.com"
