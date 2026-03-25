@@ -173,7 +173,7 @@ walletService:
   image:
     repository: qingchun22/wallet-service-arm64
     pullPolicy: IfNotPresent
-    tag: "v0.1.0"
+    tag: ""  # 留空，用 global.version
   env:
     - name: BTC_RPC_HOST
       value: "bitcoind:18443/wallet/blitz_wallet"
@@ -185,3 +185,14 @@ walletService:
       value: "etcd:2379"
     - name: ADMIN_EMAIL
       value: "test@blitz.com"
+
+
+global:
+  projectName: web3-blitz
+  arch: arm64
+  version: v0.1.10
+
+controller:
+  etcdEndpoints: "etcd:2379"
+  image:
+    repository: qingchun22/web3-blitz-controller

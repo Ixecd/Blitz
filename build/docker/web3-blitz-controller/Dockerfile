@@ -1,0 +1,21 @@
+FROM golang:1.25-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go env -w GOPROXY=https://goproxy.cn,direct
+RUN go mod tidy
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o dtk ./cmd/dtk
+
+FROM alpine:3.20
+WORKDIR /app
+
+# 安装 kubectl
+RUN apk add --no-cache ca-certificates tzdata curl bash && \
+    curl -LO "https://dl.k8s.io/release/v1.32.0/bin/linux/$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')/kubectl" && \
+    chmod +x kubectl && mv kubectl /usr/local/bin/
+
+# 安装 helm
+RUN curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+COPY --from=builder /app/dtk /usr/local/bin/dtk
+
+CMD ["dtk", "controller", "start"]

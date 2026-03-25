@@ -33,7 +33,12 @@ deploy.install:
 	@$(HELM) upgrade --install $(PROJECT_NAME) $(CHART_DIR) \
 		--namespace $(NAMESPACE) \
 		--create-namespace \
-		$(if $(CONTEXT),--kube-context $(CONTEXT))
+		--set global.version=$(VERSION) \
+		--set global.arch=$(ARCH) \
+		--wait \
+		--timeout 120s \
+		$(if $(strip $(CONTEXT)),--kube-context $(CONTEXT)) \
+		$(if $(strip $(KUBE_CONFIG)),--kubeconfig $(KUBE_CONFIG))
 
 .PHONY: deploy.full
 deploy.full: deploy.build deploy.push deploy.install deploy.run.all
@@ -58,7 +63,13 @@ deploy.run: $(addprefix deploy.run., $(DEPLOYS))
 .PHONY: deploy.run.%
 deploy.run.%:
 	@echo "===========> Deploying $* $(VERSION) on $(ARCH)"
-	@$(KUBECTL) $(if $(CONTEXT),--context $(CONTEXT)) --namespace $(NAMESPACE) \
-		set image deployment/$* $*=$(REGISTRY_PREFIX)/$*-$(ARCH):$(VERSION) --record
-	@$(KUBECTL) $(if $(CONTEXT),--context $(CONTEXT)) --namespace $(NAMESPACE) \
+	@$(KUBECTL) \
+		$(if $(strip $(KUBE_CONFIG)),--kubeconfig $(KUBE_CONFIG)) \
+		$(if $(strip $(CONTEXT)),--context $(CONTEXT)) \
+		--namespace $(NAMESPACE) \
+		set image deployment/$* $*=$(REGISTRY_PREFIX)/$*-$(ARCH):$(VERSION)
+	@$(KUBECTL) \
+		$(if $(strip $(KUBE_CONFIG)),--kubeconfig $(KUBE_CONFIG)) \
+		$(if $(strip $(CONTEXT)),--context $(CONTEXT)) \
+		--namespace $(NAMESPACE) \
 		rollout status deployment/$* --timeout=300s

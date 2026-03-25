@@ -5,3 +5,7 @@ components:
   - name: wallet-service
     port: 2113
     image: wallet-service
+
+  - name: web3-blitz-controller
+    port: 0
+    image: ""    # ← 留空，跳过 build/push，镜像已手动推送
