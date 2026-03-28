@@ -1,0 +1,21 @@
+replicaCount: 2
+
+image:
+  repository: qingchun22/wallet-service-arm64
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 2113
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+env:
+  - name: DATABASE_URL
+    value: "postgres://blitz:blitz@postgres:5432/blitz?sslmode=disable&search_path=public"
+  - name: ETCD_ENDPOINTS
+    value: "etcd:2379"

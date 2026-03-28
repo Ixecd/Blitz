@@ -1,0 +1,9 @@
+✅ wallet-service 部署成功！
+
+命名空间: {{ .Release.Namespace }}
+版本:     {{ .Values.image.tag | default .Chart.AppVersion }}
+
+快速访问:
+  kubectl get pods -n {{ .Release.Namespace }} -l app=wallet-service
+  kubectl logs -n {{ .Release.Namespace }} deployment/wallet-service
+  kubectl port-forward -n {{ .Release.Namespace }} deployment/wallet-service 2113:2113
