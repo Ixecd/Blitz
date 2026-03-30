@@ -1,11 +1,12 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: web3-blitz-etcd
   namespace: {{ .Release.Namespace }}
   labels:
     app: web3-blitz-etcd
 spec:
+  serviceName: web3-blitz-etcd
   replicas: 1
   selector:
     matchLabels:
@@ -46,6 +47,11 @@ spec:
           volumeMounts:
             - name: etcd-data
               mountPath: /etcd-data
-      volumes:
-        - name: etcd-data
-          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: etcd-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

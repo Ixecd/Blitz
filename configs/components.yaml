@@ -8,7 +8,7 @@ components:
     image: ""
 
   - name: web3-blitz-etcd
-    type: deployment
+    type: statefulset
     port: 2379
     image: ""
 
