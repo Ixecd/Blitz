@@ -29,3 +29,6 @@ env:
     value: "2192629378@qq.com"
   - name: FRONTEND_URL
     value: "http://localhost:5173"
+bluegreen:
+  slot: ""
+  skipService: false

@@ -42,6 +42,7 @@ definitions:
     required:
       - username
       - password
+      - new_required_field
     properties:
       username:
         type: string

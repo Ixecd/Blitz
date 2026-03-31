@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wallet-service
+  name: {{ .Release.Name }}
   namespace: {{ .Release.Namespace }}
   labels:
     app: wallet-service
@@ -17,7 +17,7 @@ spec:
         app: wallet-service
         version: {{ .Values.image.tag | default .Chart.AppVersion }}
     spec:
-      serviceAccountName: wallet-service
+      serviceAccountName: {{ .Release.Name }}
       initContainers:
         - name: wait-postgres
           image: busybox:1.35

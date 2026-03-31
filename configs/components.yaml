@@ -14,6 +14,7 @@ components:
 
   - name: wallet-service
     type: deployment
+    strategy: blue-green
     port: 2113
     image: wallet-service
     replicas: 2
