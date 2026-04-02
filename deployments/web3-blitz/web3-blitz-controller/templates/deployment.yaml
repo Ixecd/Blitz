@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dev-toolkit-controller
+  name: kubepivot-controller
   namespace: {{ .Release.Namespace }}
   labels:
-    app: dev-toolkit-controller
+    app: kubepivot-controller
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: dev-toolkit-controller
+      app: kubepivot-controller
   template:
     metadata:
       labels:
-        app: dev-toolkit-controller
+        app: kubepivot-controller
     spec:
-      serviceAccountName: dev-toolkit-controller
+      serviceAccountName: kubepivot-controller
       containers:
         - name: controller
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["dtk", "controller", "start"]
+          command: ["kp", "controller", "start"]
           env:
             - name: PROJECT_NAME
               value: {{ .Values.global.projectName | quote }}

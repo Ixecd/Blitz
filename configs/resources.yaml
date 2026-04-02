@@ -7,7 +7,7 @@ resources:
     fallback: rollback
 
   - kind: StatefulSet
-    name: postgres
+    name: web3-blitz-postgres
     namespace: web3-blitz
     on-missing: alert
     max_retry: 0
