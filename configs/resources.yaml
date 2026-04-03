@@ -6,6 +6,8 @@ resources:
     max_retry: 3
     force-sync: true
     fallback: rollback
+    no-sync-fields:
+      - replicas
 
   - kind: StatefulSet
     name: web3-blitz-postgres
