@@ -52,7 +52,7 @@ ifeq (${BINS},)
 	$(error Could not determine BINS, set ROOT_DIR or run in source dir)
 endif
 
-EXCLUDE_TESTS=github.com/Ixecd/web3-blitz/test github.com/Ixecd/web3-blitz/pkg/log github.com/Ixecd/web3-blitz/third_party github.com/Ixecd/web3-blitz/internal/pkg/logger
+EXCLUDE_TESTS=github.com/Ixecd/kubepivot/test github.com/Ixecd/kubepivot/pkg/log github.com/Ixecd/kubepivot/third_party github.com/Ixecd/kubepivot/internal/pkg/logger
 
 .PHONY: go.build.verify
 go.build.verify:
@@ -90,7 +90,7 @@ go.test: tools.verify.go-junit-report
 		-timeout=10m -shuffle=on -short -v `go list ./...|\
 		egrep -v $(subst $(SPACE),'|',$(sort $(EXCLUDE_TESTS)))` 2>&1 | \
 		tee >(go-junit-report --set-exit-code >$(OUTPUT_DIR)/report.xml)
-	@sed -i '/mock_.*.go/d' $(OUTPUT_DIR)/coverage.out # remove mock_.*.go files from test coverage
+	@sed -i.bak '/mock_.*.go/d' $(OUTPUT_DIR)/coverage.out && rm -f $(OUTPUT_DIR)/coverage.out.bak
 	@$(GO) tool cover -html=$(OUTPUT_DIR)/coverage.out -o $(OUTPUT_DIR)/coverage.html
 
 .PHONY: go.test.cover
@@ -101,3 +101,10 @@ go.test.cover: go.test
 .PHONY: go.updates
 go.updates: tools.verify.go-mod-outdated
 	@$(GO) list -u -m -json all | go-mod-outdated -update -direct
+
+.PHONY: go.dev
+go.dev:
+	@echo "===========> Build + Test + Install (dev loop)"
+	@$(GO) build ./...
+	@$(GO) test ./... -race
+	@$(MAKE) install

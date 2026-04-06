@@ -11,19 +11,19 @@ SHELL := /bin/bash
 # 包含主 Makefile 和被 include 的 Makefile
 COMMON_SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-# ROOT_DIR is the root directory of the web3-blitz.
+# ROOT_DIR is the root directory of the project.
 ifeq ($(origin ROOT_DIR), undefined)
 # 确保是绝对路径
   ROOT_DIR := $(abspath $(shell cd $(COMMON_SELF_DIR)/../.. && pwd -P))
 endif	
 
-# Load web3-blitz config if present (KEY=VALUE format).
--include $(ROOT_DIR)/configs/web3-blitz.env
+# Load project config if present (KEY=VALUE format).
+-include $(ROOT_DIR)/configs/project.env
 
 # Load components config if present (simple YAML list).
 COMPONENTS_FILE ?= $(ROOT_DIR)/configs/components.yaml
 ifneq ("$(wildcard $(COMPONENTS_FILE))","")
-COMPONENT_NAMES ?= $(shell awk -F': *' '/- name:/{gsub(/"/,"",$$2); print $$2}' $(COMPONENTS_FILE))
+COMPONENT_NAMES ?= $(shell find $(ROOT_DIR)/cmd -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 COMPONENT_IMAGES ?= $(shell awk -F': *' '/^ *image:/{gsub(/"/,"",$$2); if ($$2 != "") print $$2}' $(COMPONENTS_FILE))
 endif
 
@@ -35,19 +35,19 @@ ifneq ($(strip $(COMPONENT_IMAGES)),)
 IMAGES ?= $(COMPONENT_IMAGES)
 endif
 
-# OUTPUT_DIR is the output directory of the web3-blitz.
+# OUTPUT_DIR is the output directory of the project.
 ifeq ($(origin OUTPUT_DIR),undefined)
 OUTPUT_DIR := $(ROOT_DIR)/_output
 $(shell mkdir -p $(OUTPUT_DIR))
 endif
 
-# TOOLS_DIR is the tools directory of the web3-blitz.
+# TOOLS_DIR is the tools directory of the project.
 ifeq ($(origin TOOLS_DIR),undefined)
 TOOLS_DIR := $(OUTPUT_DIR)/tools
 $(shell mkdir -p $(TOOLS_DIR))
 endif
 
-# TMP_DIR is the tmp directory of the web3-blitz.
+# TMP_DIR is the tmp directory of the project.
 ifeq ($(origin TMP_DIR),undefined)
 TMP_DIR := $(OUTPUT_DIR)/tmp
 $(shell mkdir -p $(TMP_DIR))
@@ -111,8 +111,7 @@ MAKEFLAGS += --no-print-directory
 endif
 
 # Copy githook scripts when execute makefile, maybe not use, better use a target instead
-COPY_GITHOOK:=$(shell cp -f githooks/* .git/hooks/)
-
+COPY_GITHOOK:=$(shell [ -d .githooks ] && cp -f .githooks/* .git/hooks/ || true)
 
 # Specify components which need certificate
 ifeq ($(origin CERTIFICATES),undefined)
@@ -123,7 +122,7 @@ endif
 # Missing BLOCKER_TOOLS can cause the CI flow execution failed, i.e. `make all` failed.
 # Missing CRITICAL_TOOLS can lead to some necessary operations failed. i.e. `make release` failed.
 # TRIVIAL_TOOLS are Optional tools, missing these tool have no affect.
-BLOCKER_TOOLS ?= gsemver golines go-junit-report golangci-lint addlicense goimports codegen
+BLOCKER_TOOLS ?= gsemver golines go-junit-report golangci-lint addlicense goimports
 CRITICAL_TOOLS ?= swagger mockgen gotests git-chglog github-release coscmd go-mod-outdated protoc-gen-go cfssl go-gitlint
 TRIVIAL_TOOLS ?= depth go-callvis gothanks richgo rts kube-score
 
