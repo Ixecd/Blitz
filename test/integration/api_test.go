@@ -8,14 +8,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIntegration_Healthz(t *testing.T) {
+func TestAPI_Healthz(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
-	http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
-	}).ServeHTTP(w, req)
+	})
+	handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "ok", w.Body.String())

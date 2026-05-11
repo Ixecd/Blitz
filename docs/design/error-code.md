@@ -145,7 +145,7 @@ make gen.errcode.doc
 
 ## codegen 工具
 
-dev-toolkit 里的 `tools/codegen` 扫描 Go 源码 AST，提取 `ErrorCode` 类型常量及注释，生成代码和文档。
+web3-blitz 里的 `tools/codegen` 扫描 Go 源码 AST，提取 `ErrorCode` 类型常量及注释，生成代码和文档。
 
 ```bash
 # 生成 Go 代码

@@ -23,21 +23,24 @@ spec:
             - containerPort: 5432
           env:
             - name: POSTGRES_USER
-              value: blitz
+              value: user
             - name: POSTGRES_PASSWORD
-              value: blitz
+              valueFrom:
+                secretKeyRef:
+                  name: web3-blitz-postgres-auth
+                  key: password
             - name: POSTGRES_DB
-              value: blitz
+              value: web3-blitz
             - name: PGDATA
               value: /var/lib/postgresql/data/pgdata
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "blitz", "-d", "blitz"]
+              command: ["pg_isready", "-U", "user", "-d", "web3-blitz"]
             initialDelaySeconds: 5
             periodSeconds: 5
           livenessProbe:
             exec:
-              command: ["pg_isready", "-U", "blitz", "-d", "blitz"]
+              command: ["pg_isready", "-U", "user", "-d", "web3-blitz"]
             initialDelaySeconds: 15
             periodSeconds: 10
           volumeMounts:

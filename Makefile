@@ -7,12 +7,13 @@
 .DEFAULT_GOAL := all
 
 .PHONY := all
-all: tidy gen add-copyright format lint cover build frontend.build
+all: tidy gen add-copyright format lint cover build
+# 注: web3-blitz 无前端，frontend.build 已移除
 
 # ================================================================
 # Build options
 
-ROOT_PACKAGE := github.com/Ixecd/kubepivot
+ROOT_PACKAGE := github.com/Ixecd/web3-blitz
 
 VERSION_PACKAGE := github.com/Ixecd/component-base/pkg/version
 
@@ -32,11 +33,12 @@ include scripts/make-rules/common.mk
 include scripts/make-rules/golang.mk
 include scripts/make-rules/image.mk
 include scripts/make-rules/deploy.mk
+include scripts/make-rules/copyright.mk
+include scripts/make-rules/gen.mk
 include scripts/make-rules/ca.mk
 include scripts/make-rules/release.mk
 include scripts/make-rules/swagger.mk
 include scripts/make-rules/dependencies.mk
-include scripts/make-rules/gen.mk
 include scripts/make-rules/tools.mk
 
 # ================================================================
@@ -76,14 +78,13 @@ export USAGE_OPTIONS
 build:
 	@$(MAKE) go.build
 
-## install: Install kp binary to GOPATH/bin or GOBIN.
+## install: Install services to GOPATH/bin.
 .PHONY: install
 install:
-	@echo "===========> Installing kp"
-	@$(GO) install ./cmd/kp
-	@ln -sf $(shell go env GOPATH)/bin/kp $(shell go env GOPATH)/bin/kpivot
-	@ln -sf $(shell go env GOPATH)/bin/kp $(shell go env GOPATH)/bin/kubepivot
-	@$(GO) install ./cmd/kp
+	@echo "===========> Installing web3-blitz services"
+	@$(GO) install ./cmd/wallet-service
+	@$(GO) install ./cmd/chain-miner
+	@$(GO) install ./cmd/pos-sim
 
 ## dev: Build, test and install in one shot (fast dev loop).
 .PHONY: dev
@@ -110,10 +111,15 @@ image.multiarch:
 push:
 	@$(MAKE) image.push
 
-## push.multiarch: Push docker images for multiple platforms to registry.
+## push.multiarch: Push + merge manifest for multiple platforms.
 .PHONY: push.multiarch
 push.multiarch:
 	@$(MAKE) image.push.multiarch
+
+## push.manifest: Retry push (buildx + multi-arch manifest, no rebuild).
+.PHONY: push.manifest
+push.manifest:
+	@$(MAKE) image.manifest.push
 
 ## deploy: Deploy updated components to deployment env.
 .PHONY: deploy
@@ -235,6 +241,36 @@ frontend.clean:
 		echo "===========> Cleaning frontend"; \
 		rm -rf $(FRONTEND_DIR)/dist $(FRONTEND_DIR)/node_modules; \
 	fi
+
+## bench.kp: Run KP-side KVCache benchmarks.
+.PHONY: bench.kp
+bench.kp:
+	@echo "===========> Running KP KVCache benchmarks"
+	@go test -bench=. -benchmem -count=3 -benchtime=1s -run='^$$' ./internal/eventstream/
+
+## bench.scale: Run scalability benchmarks (1k/10k/100k pods, fragment + sampling).
+.PHONY: bench.scale
+bench.scale:
+	@echo "===========> Scalability benchmark (1k/10k/100k pods)"
+	@go test -bench='BenchmarkFragmentRate' -benchmem -benchtime=5s -run='^$$' ./internal/scheduler/
+	@echo "===========> Sampling accuracy test"
+	@go test -run='TestFragSamplingError' -v ./internal/scheduler/
+
+## bench.regression: Run KP benchmarks and compare against baseline (prune gate).
+.PHONY: bench.regression
+bench.regression: bench.kp
+	@echo "===========> Comparing with baseline"
+	@if [ -f benchmark/results/baseline-kp.txt ]; then \
+		benchstat benchmark/results/baseline-kp.txt benchmark/results/latest-kp.txt || true; \
+	else \
+		echo "No baseline found. Save current results as baseline with: make bench.baseline"; \
+	fi
+
+## bench.baseline: Save current benchmark results as baseline for regression checks.
+.PHONY: bench.baseline
+bench.baseline: bench.kp
+	@echo "===========> Saving benchmark baseline"
+	@cp benchmark/results/latest-kp.txt benchmark/results/baseline-kp.txt
 
 ## help: Show this help info
 .PHONY: help

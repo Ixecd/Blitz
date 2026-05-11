@@ -22,7 +22,7 @@
 ### 方案 C：直接 port-forward 验证（本地开发用）
 
 	kubectl port-forward -n <namespace> \
-	  deployment/<project>-wallet-service-blue <local-port>:2113
+	  deployment/<web3-blitz>-wallet-service-blue <local-port>:2113
 	curl http://localhost:<local-port>/healthz
 
 ## 确认后切换流量

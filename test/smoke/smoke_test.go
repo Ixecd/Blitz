@@ -1,4 +1,5 @@
 //go:build e2e
+
 package smoke
 
 import (
@@ -9,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSmoke_Healthz(t *testing.T) {
+func TestSmoke_Health(t *testing.T) {
 	resp, err := http.Get("http://localhost:8080/healthz")
 	require.NoError(t, err)
 	defer resp.Body.Close()

@@ -1,17 +1,28 @@
+# configs/resources.yaml
+# A2 Reconciliation Controller 监控的 K8s 资源列表
+# 新增监控资源只需在此加一行，不需要改代码
+#
+# 支持的 kind：Deployment / StatefulSet / Service / PVC / Ingress / CronJob
+# on-missing 策略：
+#   auto-heal  — 自动执行 helm rollback 恢复
+#   alert      — 只告警，不自动处理
+#
+
 resources:
   - kind: Deployment
-    name: wallet-service
-    namespace: web3-blitz
+    name: web3-blitz
     on-missing: auto-heal
-    max_retry: 3
-    force-sync: true
+    max-retry: 3
     fallback: rollback
-    no-sync-fields:
-      - replicas
 
-  - kind: StatefulSet
-    name: web3-blitz-postgres
-    namespace: web3-blitz
-    on-missing: alert
-    max_retry: 0
-    fallback: ""
+  # 示例：监控 StatefulSet
+  # - kind: StatefulSet
+  #   name: web3-blitz-postgres
+  #   on-missing: auto-heal
+  #   max-retry: 2
+  #   fallback: rollback
+
+  # 示例：只告警不自动处理
+  # - kind: PersistentVolumeClaim
+  #   name: postgres-data
+  #   on-missing: alert

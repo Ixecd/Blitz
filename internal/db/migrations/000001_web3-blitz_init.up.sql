@@ -1,0 +1,9 @@
+-- 000001_web3-blitz_init.up.sql
+-- 在此添加建表语句
+-- 示例：
+-- CREATE TABLE IF NOT EXISTS users (
+--     id         BIGSERIAL PRIMARY KEY,
+--     email      TEXT NOT NULL UNIQUE,
+--     password   TEXT NOT NULL,
+--     created_at TIMESTAMPTZ DEFAULT NOW()
+-- );

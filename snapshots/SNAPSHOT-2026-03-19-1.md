@@ -8,7 +8,7 @@
 ## 项目是什么
 
 Go + 云原生的交易所钱包充提币系统。
-脚手架工具：`github.com/Ixecd/dev-toolkit`（dtk），支持 1 行 init boilerplate + 1 键 AI-plan + Helm deploy。
+脚手架工具：`github.com/Ixecd/web3-blitz`（dtk），支持 1 行 init boilerplate + 1 键 AI-plan + Helm deploy。
 
 ---
 

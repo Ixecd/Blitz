@@ -9,7 +9,7 @@
 | Go | >= 1.24 | [golang.org](https://golang.org) |
 | Docker | latest | [docker.com](https://docker.com) |
 | bitcoin-cli | >= 28.0 | `brew install bitcoin` |
-| dtk | latest | `go install github.com/Ixecd/dev-toolkit/cmd/dtk@latest` |
+| dtk | latest | `go install github.com/Ixecd/web3-blitz/cmd/dtk@latest` |
 
 ---
 

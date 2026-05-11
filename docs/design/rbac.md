@@ -167,9 +167,9 @@ WHERE r.name = 'auditor' AND p.name IN ('user:read', 'withdraw:audit');
 
 ---
 
-## dev-toolkit 集成
+## web3-blitz 集成
 
-dev-toolkit 骨架中 `internal/auth/rbac.go` 使用接口设计，不依赖具体 DB：
+web3-blitz 骨架中 `internal/auth/rbac.go` 使用接口设计，不依赖具体 DB：
 
 ```go
 type PermissionChecker interface {

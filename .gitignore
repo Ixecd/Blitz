@@ -5,14 +5,18 @@
 .vscode
 
 *.bak
-*.bak.bak
+*.bak.baksbom-*.json
 
-# Secrets
+*.py
+
+# 环境变量 / 密钥 — 绝不进仓库
 .env
-*.enc
-secrets/
+scripts/docker/.env
+templates/docker/.env
+# 注: configs/project.env 是 kp deploy 变量，无密钥，允许入库
 
-*.db
+# benchmark results 数据文件不进仓库，只留 .gitkeep
+benchmark/results/*
+!benchmark/results/.gitkeep
+
 infra1.etcd/
-.etcd/
-data/

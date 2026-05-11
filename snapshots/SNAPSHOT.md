@@ -8,7 +8,7 @@
 ## 项目是什么
 
 Go + 云原生的交易所钱包充提币系统，目标是生产可用的完整交易所钱包基础设施。
-脚手架工具：`github.com/Ixecd/dev-toolkit`（dtk），支持 1 行 init boilerplate + 1 键 AI-plan + Helm deploy。
+脚手架工具：`github.com/Ixecd/web3-blitz`（dtk），支持 1 行 init boilerplate + 1 键 AI-plan + Helm deploy。
 
 ---
 
@@ -220,7 +220,7 @@ go run cmd/wallet-service/main.go
 5. **ETH reorg 数据库回滚**
 6. **死信队列定时重试 + 管理接口**
 7. **多链扩展**（TRON/SOL/Polygon）
-8. **dev-toolkit metrics 骨架**
+8. **web3-blitz metrics 骨架**
 
 ---
 

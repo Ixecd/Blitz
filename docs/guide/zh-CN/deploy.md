@@ -5,7 +5,6 @@
 - Docker Desktop / OrbStack
 - kubectl
 - helm
-- dtk（`go install github.com/Ixecd/dev-toolkit/cmd/dtk@latest`）
 
 ## 本地开发
 

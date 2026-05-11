@@ -39,7 +39,6 @@ func RBACMiddleware(queries *db.Queries, permission string, next http.HandlerFun
 			http.Error(w, "权限不足", http.StatusForbidden)
 			return
 		}
-
 		next(w, r)
 	}
 }

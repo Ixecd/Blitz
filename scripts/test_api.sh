@@ -1,0 +1,15 @@
+#!/bin/bash
+# API smoke test for web3-blitz
+BASE="http://localhost:8080"
+
+echo "=== Healthz ==="
+curl -s "$BASE/healthz"
+echo ""
+
+echo "=== Unauthorized (expect 401) ==="
+curl -s "$BASE/"
+echo ""
+
+echo "=== Authorized ==="
+curl -s -H "Authorization: Bearer demo-token" "$BASE/"
+echo ""

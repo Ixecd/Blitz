@@ -1,3 +1,6 @@
+# Alertmanager 配置
+# 注意: bot_token 等敏感信息不要提交到 git
+
 global:
   resolve_timeout: 5m
 
@@ -11,14 +14,13 @@ route:
 receivers:
   - name: 'telegram'
     telegram_configs:
-      - bot_token: '<YOUR_TELEGRAM_BOT_TOKEN>'   # 从 @BotFather 获取
-        chat_id: <YOUR_CHAT_ID>                  # 从 @userinfobot 获取，个人 chat_id 为正整数
+      - bot_token: '<YOUR_BOT_TOKEN>'
+        chat_id: <YOUR_CHAT_ID>
         message: |
           🚨 *{{ .GroupLabels.alertname }}*
           {{ range .Alerts }}
           *状态*: {{ .Status }}
           *服务*: {{ .Labels.service }}
           *描述*: {{ .Annotations.description }}
-          *时间*: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
           {{ end }}
         parse_mode: 'Markdown'

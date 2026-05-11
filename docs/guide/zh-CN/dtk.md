@@ -1,10 +1,10 @@
 # dtk 使用指南
 
-> dtk（dev-toolkit）是 web3-blitz 的脚手架工具，提供项目初始化和一键部署能力。
+> dtk（web3-blitz）是 web3-blitz 的脚手架工具，提供项目初始化和一键部署能力。
 
 ## 安装
 ```bash
-go install github.com/Ixecd/dev-toolkit/cmd/dtk@latest
+go install github.com/Ixecd/web3-blitz/cmd/dtk@latest
 ```
 
 验证安装：

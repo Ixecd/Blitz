@@ -1,0 +1,4 @@
+-- 000001_init.down.sql
+-- 在此添加回滚语句（与 up 顺序相反）
+-- 示例：
+-- DROP TABLE IF EXISTS users;

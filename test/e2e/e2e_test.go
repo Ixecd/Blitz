@@ -1,4 +1,5 @@
 //go:build e2e
+
 package e2e
 
 import (
@@ -11,7 +12,7 @@ import (
 
 const baseURL = "http://localhost:8080"
 
-func TestE2E_Healthz(t *testing.T) {
+func TestE2E_Web3Blitz(t *testing.T) {
 	resp, err := http.Get(baseURL + "/healthz")
 	require.NoError(t, err)
 	defer resp.Body.Close()

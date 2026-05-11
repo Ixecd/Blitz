@@ -53,7 +53,7 @@ configs/
 
 ```
 build/docker/web3-blitz-controller/
-└── Dockerfile                   # 基于 dev-toolkit 二进制，内含 kubectl + helm
+└── Dockerfile                   # 基于 web3-blitz 二进制，内含 kubectl + helm
 ```
 
 ---
@@ -121,12 +121,12 @@ rules:
 
 ## 踩过的坑（血泪史）
 
-### 1. controller 镜像需要在 dev-toolkit 目录构建
+### 1. controller 镜像需要在 web3-blitz 目录构建
 
-controller 镜像包含 dtk 二进制，必须在 dev-toolkit 目录构建：
+controller 镜像包含 dtk 二进制，必须在 web3-blitz 目录构建：
 
 ```bash
-cd ~/dev-toolkit
+cd ~/web3-blitz
 docker build --no-cache -f build/docker/controller/Dockerfile \
   -t qingchun22/web3-blitz-controller-arm64:<version> .
 docker push qingchun22/web3-blitz-controller-arm64:<version>
@@ -198,7 +198,7 @@ image: "{{ .Values.controller.image.repository }}-{{ .Values.global.arch }}:..."
 
 ### 7. docker build 缓存问题
 
-dev-toolkit 代码改了但镜像没更新，因为 docker build cache 命中了 `COPY . .`。
+web3-blitz 代码改了但镜像没更新，因为 docker build cache 命中了 `COPY . .`。
 必须用 `--no-cache` 强制重新构建。
 
 ### 8. 状态机和 controller 状态不同步

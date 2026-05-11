@@ -97,7 +97,7 @@ env:
 
 ```
 namespace: web3-blitz
-  dev-toolkit-controller-xxx    1/1 Running  ✅
+  web3-blitz-controller-xxx    1/1 Running  ✅
   wallet-service-xxx (×2)       1/1 Running  ✅
   web3-blitz-etcd-0             1/1 Running  ✅  StatefulSet + PVC
   web3-blitz-postgres-0         1/1 Running  ✅  StatefulSet + PVC

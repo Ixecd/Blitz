@@ -20,7 +20,7 @@
 
 ### Makefile 同步
 
-从 dev-toolkit 同步 `deploy.mk` 和 `tools.mk`：
+从 web3-blitz 同步 `deploy.mk` 和 `tools.mk`：
 - `deploy.mk`：本地 image inspect 替代远端 manifest inspect，KUBECTL/HELM flags 优化
 - `tools.mk`：新增 `install.trivy` / `install.cosign`
 - `Makefile`：显式指定 `BINS = wallet-service`，避免扫描到 chain-miner/pos-sim
@@ -31,7 +31,7 @@
 
 ```
 namespace: web3-blitz
-  dev-toolkit-controller（Deployment）  1/1 Running ✅
+  web3-blitz-controller（Deployment）  1/1 Running ✅
   wallet-service（Deployment ×2）       1/1 Running ✅  v0.1.12，grpc v1.79.3
   web3-blitz-etcd-0（StatefulSet）      1/1 Running ✅  PVC 持久化
   web3-blitz-postgres-0（StatefulSet）  1/1 Running ✅  PVC 持久化

@@ -23,7 +23,7 @@ spec:
           command: ["kp", "controller", "start"]
           env:
             - name: PROJECT_NAME
-              value: {{ .Values.global.projectName | quote }}
+              value: {{ .Values.global.web3-blitzName | quote }}
             - name: KUBE_NAMESPACE
               value: {{ .Release.Namespace | quote }}
             - name: ETCD_ENDPOINTS

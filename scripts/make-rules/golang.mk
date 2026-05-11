@@ -52,7 +52,7 @@ ifeq (${BINS},)
 	$(error Could not determine BINS, set ROOT_DIR or run in source dir)
 endif
 
-EXCLUDE_TESTS=github.com/Ixecd/kubepivot/test github.com/Ixecd/kubepivot/pkg/log github.com/Ixecd/kubepivot/third_party github.com/Ixecd/kubepivot/internal/pkg/logger
+EXCLUDE_TESTS=github.com/Ixecd/web3-blitz/test github.com/Ixecd/web3-blitz/pkg/log github.com/Ixecd/web3-blitz/third_party github.com/Ixecd/web3-blitz/internal/pkg/logger
 
 .PHONY: go.build.verify
 go.build.verify:
@@ -63,9 +63,10 @@ go.build.%:
 	$(eval PLATFORM := $(word 1, $(subst ., , $*)))
 	$(eval OS := $(word 1,$(subst _, ,$(PLATFORM))))
 	$(eval ARCH := $(word 2,$(subst _, ,$(PLATFORM))))
+	$(eval CMD_PKG := $(if $(filter controller,$(COMMAND)),kp,$(COMMAND)))
 	@echo "===========> Building binary $(COMMAND) $(VERSION) for $(OS) $(ARCH)"
 	@mkdir -p $(OUTPUT_DIR)/platforms/$(OS)/$(ARCH)
-	@CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) $(GO) build $(GO_BUILD_FLAGS) -o $(OUTPUT_DIR)/platforms/$(OS)/$(ARCH)/$(COMMAND)$(GO_OUT_EXT) $(ROOT_PACKAGE)/cmd/$(COMMAND)
+	@CGO_ENABLED=0 GOOS=$(OS) GOARCH=$(ARCH) $(GO) build $(GO_BUILD_FLAGS) -o $(OUTPUT_DIR)/platforms/$(OS)/$(ARCH)/$(COMMAND)$(GO_OUT_EXT) $(ROOT_PACKAGE)/cmd/$(CMD_PKG)
 
 .PHONY: go.build
 go.build: go.build.verify $(addprefix go.build., $(addprefix $(PLATFORM)., $(BINS)))
@@ -90,7 +91,7 @@ go.test: tools.verify.go-junit-report
 		-timeout=10m -shuffle=on -short -v `go list ./...|\
 		egrep -v $(subst $(SPACE),'|',$(sort $(EXCLUDE_TESTS)))` 2>&1 | \
 		tee >(go-junit-report --set-exit-code >$(OUTPUT_DIR)/report.xml)
-	@sed -i.bak '/mock_.*.go/d' $(OUTPUT_DIR)/coverage.out && rm -f $(OUTPUT_DIR)/coverage.out.bak
+	@sed -i '/mock_.*.go/d' $(OUTPUT_DIR)/coverage.out # remove mock_.*.go files from test coverage
 	@$(GO) tool cover -html=$(OUTPUT_DIR)/coverage.out -o $(OUTPUT_DIR)/coverage.html
 
 .PHONY: go.test.cover

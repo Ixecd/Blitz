@@ -18,7 +18,7 @@ BTC/ETH 充提币系统，同时作为 dtk 的活体验证环境。
 
 ```
 namespace: web3-blitz
-  dev-toolkit-controller（Deployment）  1/1 Running ✅
+  web3-blitz-controller（Deployment）  1/1 Running ✅
   wallet-service（Deployment ×2）       1/1 Running ✅  v0.1.12
   web3-blitz-etcd-0（StatefulSet）      1/1 Running ✅  PVC
   web3-blitz-postgres-0（StatefulSet）  1/1 Running ✅  PVC
