@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/Ixecd/web3-blitz/internal/config"
-	"github.com/Ixecd/web3-blitz/internal/wallet/types"
+	"github.com/Ixecd/blitz/internal/config"
+	"github.com/Ixecd/blitz/internal/wallet/types"
 	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 )

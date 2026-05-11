@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blitz-postgres
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    app: blitz-postgres
+  ports:
+    - port: 5432
+      targetPort: 5432

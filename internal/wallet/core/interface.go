@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	"github.com/Ixecd/web3-blitz/internal/wallet/types"
+	"github.com/Ixecd/blitz/internal/wallet/types"
 )
 
 // WalletService 交易所钱包统一核心接口（以后加 TRON、SOL 都走这里）

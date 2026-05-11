@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubepivot-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: kubepivot-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubepivot-controller
+  template:
+    metadata:
+      labels:
+        app: kubepivot-controller
+    spec:
+      serviceAccountName: kubepivot-controller
+      containers:
+        - name: controller
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["kp", "controller", "start"]
+          env:
+            - name: PROJECT_NAME
+              value: {{ .Values.global.blitzName | quote }}
+            - name: KUBE_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            - name: ETCD_ENDPOINTS
+              value: {{ .Values.controller.etcdEndpoints | quote }}
+            - name: RESOURCES_CONFIG
+              value: "/app/configs/resources.yaml"
+          volumeMounts:
+            - name: resources-config
+              mountPath: /app/configs
+              readOnly: true
+      volumes:
+        - name: resources-config
+          configMap:
+            name: blitz-resources-config

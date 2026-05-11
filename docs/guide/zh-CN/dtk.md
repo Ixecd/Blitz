@@ -1,10 +1,10 @@
 # dtk 使用指南
 
-> dtk（web3-blitz）是 web3-blitz 的脚手架工具，提供项目初始化和一键部署能力。
+> dtk（blitz）是 blitz 的脚手架工具，提供项目初始化和一键部署能力。
 
 ## 安装
 ```bash
-go install github.com/Ixecd/web3-blitz/cmd/dtk@latest
+go install github.com/Ixecd/blitz/cmd/dtk@latest
 ```
 
 验证安装：
@@ -113,8 +113,8 @@ dtk deploy --namespace production
 
 控制部署行为的核心配置：
 ```ini
-PROJECT_NAME=web3-blitz          # 项目名，对应 Helm release 名
-KUBE_NAMESPACE=web3-blitz        # K8s 命名空间
+PROJECT_NAME=blitz          # 项目名，对应 Helm release 名
+KUBE_NAMESPACE=blitz        # K8s 命名空间
 KUBE_CONTEXT=                    # K8s context（留空使用当前）
 REGISTRY_PREFIX=qingchun22       # Docker Registry 前缀
 ARCH=arm64                       # 目标架构（arm64/amd64）

@@ -1,6 +1,6 @@
 # RBAC 权限系统设计
 
-> web3-blitz 的基于角色的访问控制（Role-Based Access Control）设计文档。
+> blitz 的基于角色的访问控制（Role-Based Access Control）设计文档。
 
 ---
 
@@ -167,9 +167,9 @@ WHERE r.name = 'auditor' AND p.name IN ('user:read', 'withdraw:audit');
 
 ---
 
-## web3-blitz 集成
+## blitz 集成
 
-web3-blitz 骨架中 `internal/auth/rbac.go` 使用接口设计，不依赖具体 DB：
+blitz 骨架中 `internal/auth/rbac.go` 使用接口设计，不依赖具体 DB：
 
 ```go
 type PermissionChecker interface {

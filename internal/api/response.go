@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Ixecd/web3-blitz/internal/code"
+	"github.com/Ixecd/blitz/internal/code"
 )
 
 type Response struct {

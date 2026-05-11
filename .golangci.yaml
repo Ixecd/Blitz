@@ -367,7 +367,7 @@ linters-settings:
         - github.com/pkg/errors:
             recommendations:
               - github.com/marmotedu/errors
-            reason: "`github.com/marmotedu/errors` is the log package used by marmotedu web3-blitzs."
+            reason: "`github.com/marmotedu/errors` is the log package used by marmotedu blitzs."
       versions:
         - github.com/MakeNowJust/heredoc:
             version: "> 2.0.9"
@@ -642,13 +642,13 @@ linters-settings:
   unparam:
     # Inspect exported functions, default is false. Set to true if no external program/library imports your code.
     # XXX: if you enable this setting, unparam will report a lot of false-positives in text editors:
-    # if it's called for subdir of a web3-blitz it can't find external interfaces. All text editor integrations
+    # if it's called for subdir of a blitz it can't find external interfaces. All text editor integrations
     # with golangci-lint call it on a directory with the changed file.
     check-exported: false
   unused:
     # treat code as a program (not a library) and report unused exported identifiers; default is false.
     # XXX: if you enable this setting, unused will report a lot of false-positives in text editors:
-    # if it's called for subdir of a web3-blitz it can't find funcs usages. All text editor integrations
+    # if it's called for subdir of a blitz it can't find funcs usages. All text editor integrations
     # with golangci-lint call it on a directory with the changed file.
     check-exported: false
   whitespace:

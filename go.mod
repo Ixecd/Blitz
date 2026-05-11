@@ -1,4 +1,4 @@
-module github.com/Ixecd/web3-blitz
+module github.com/Ixecd/blitz
 
 go 1.25.0
 

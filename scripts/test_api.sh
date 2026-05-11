@@ -1,5 +1,5 @@
 #!/bin/bash
-# API smoke test for web3-blitz
+# API smoke test for blitz
 BASE="http://localhost:8080"
 
 echo "=== Healthz ==="

@@ -8,11 +8,11 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Ixecd/web3-blitz/internal/auth"
-	"github.com/Ixecd/web3-blitz/internal/code"
-	"github.com/Ixecd/web3-blitz/internal/db"
-	"github.com/Ixecd/web3-blitz/internal/metrics"
-	"github.com/Ixecd/web3-blitz/internal/wallet/types"
+	"github.com/Ixecd/blitz/internal/auth"
+	"github.com/Ixecd/blitz/internal/code"
+	"github.com/Ixecd/blitz/internal/db"
+	"github.com/Ixecd/blitz/internal/metrics"
+	"github.com/Ixecd/blitz/internal/wallet/types"
 )
 
 func (h *Handler) GenerateAddress(w http.ResponseWriter, r *http.Request) {

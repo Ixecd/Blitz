@@ -1,6 +1,6 @@
 # etcd 架构设计
 
-> web3-blitz 中 etcd 的三个使用场景及设计思路。
+> blitz 中 etcd 的三个使用场景及设计思路。
 
 ---
 

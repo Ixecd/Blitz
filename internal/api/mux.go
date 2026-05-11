@@ -3,8 +3,8 @@ package api
 import (
 	"net/http"
 
-	"github.com/Ixecd/web3-blitz/internal/auth"
-	"github.com/Ixecd/web3-blitz/internal/db"
+	"github.com/Ixecd/blitz/internal/auth"
+	"github.com/Ixecd/blitz/internal/db"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

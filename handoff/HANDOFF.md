@@ -19,14 +19,14 @@
 
 ## 一、项目概览
 
-**仓库**：github.com/Ixecd/web3-blitz
+**仓库**：github.com/Ixecd/blitz
 **当前版本**：<!-- vX.Y.Z，与 configs/project.env 中 VERSION 保持一致 -->
 **定位**：<!-- 一句话说清楚这个项目是什么、解决什么问题 -->
 
 **命令全览**：
 
 ```
-kp init       --name web3-blitz --module <module> [--with-frontend]
+kp init       --name blitz --module <module> [--with-frontend]
 kp deploy     [--namespace] [--context] [--kubeconfig] [--dry-run]
 kp resume     # 从中断点恢复
 kp rollback   # 手动触发 helm rollback
@@ -36,9 +36,9 @@ kp release    --version vX.Y.Z [--deploy]
 **目录结构**：
 
 ```
-web3-blitz/
+blitz/
 ├── cmd/
-│   └── web3-blitz/
+│   └── blitz/
 │       └── main.go          # 服务入口
 ├── internal/                # 业务逻辑（按模块拆分）
 ├── configs/
@@ -46,7 +46,7 @@ web3-blitz/
 │   ├── components.yaml      # kp 部署组件声明
 │   └── resources.yaml       # controller 监控的 K8s 资源列表
 ├── deployments/
-│   └── web3-blitz/        # 自包含 Helm chart
+│   └── blitz/        # 自包含 Helm chart
 │       ├── Chart.yaml
 │       ├── values.yaml
 │       └── templates/
@@ -105,16 +105,16 @@ Claude 理解了设计意图，才不会给出破坏架构的建议。
 kp deploy
 
 # 查看 pods
-kubectl get pods -n web3-blitz
+kubectl get pods -n blitz
 
 # 查看服务日志
-kubectl logs -n web3-blitz deployment/web3-blitz
+kubectl logs -n blitz deployment/blitz
 
 # port-forward 本地调试
-kubectl port-forward -n web3-blitz deployment/web3-blitz <local-port>:<container-port>
+kubectl port-forward -n blitz deployment/blitz <local-port>:<container-port>
 
 # 查看 helm 历史
-helm history web3-blitz -n web3-blitz
+helm history blitz -n blitz
 
 # 运行测试
 go test ./...

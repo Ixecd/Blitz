@@ -1,6 +1,6 @@
 # etcd 使用指南
 
-> web3-blitz 中 etcd 的本地启动、验证和操作手册。
+> blitz 中 etcd 的本地启动、验证和操作手册。
 
 ---
 

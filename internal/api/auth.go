@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Ixecd/web3-blitz/internal/auth"
-	"github.com/Ixecd/web3-blitz/internal/code"
-	"github.com/Ixecd/web3-blitz/internal/db"
+	"github.com/Ixecd/blitz/internal/auth"
+	"github.com/Ixecd/blitz/internal/code"
+	"github.com/Ixecd/blitz/internal/db"
 )
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {

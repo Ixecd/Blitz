@@ -8,8 +8,8 @@
 ## 一、项目框架总览
 
 ```
-web3-blitz/
-├── cmd/web3-blitz/
+blitz/
+├── cmd/blitz/
 │   └── main.go              # 服务入口，只做初始化和启动，不写业务逻辑
 ├── internal/
 │   ├── api/
@@ -31,8 +31,8 @@ web3-blitz/
 │   ├── components.yaml      # kp AI 规划依据
 │   ├── resources.yaml       # controller 监控的 K8s 资源
 │   └── system.yaml          # KubePivot 控制器配置（etcd/调度/缓存参数）
-├── deployments/web3-blitz/  # Helm chart，含 postgres、etcd、业务服务
-├── build/docker/web3-blitz/# Dockerfile + build.sh
+├── deployments/blitz/  # Helm chart，含 postgres、etcd、业务服务
+├── build/docker/blitz/# Dockerfile + build.sh
 ├── migrations/              # SQL 迁移文件（golang-migrate 格式）
 └── handoff/
     ├── HANDOFF.md           # 项目上下文，写给下一个 AI
@@ -115,7 +115,7 @@ internal/
 | `deployments/` 目录结构 | Helm chart 骨架，新增配置只改 `values.yaml` |
 | `scripts/make-rules/deploy.mk` | kp 部署流程，不要改 helm upgrade 参数 |
 | `internal/db/migrations/` | embed.FS 挂载点，目录不能改名 |
-| `cmd/web3-blitz/main.go` | 只做初始化，业务逻辑不要写在这里 |
+| `cmd/blitz/main.go` | 只做初始化，业务逻辑不要写在这里 |
 
 ---
 
@@ -143,7 +143,7 @@ internal/
 ### 加环境变量
 
 ```
-1. deployments/web3-blitz/values.yaml  → 在 env 里加
+1. deployments/blitz/values.yaml  → 在 env 里加
 2. configs/project.env               → 本地开发时加（不提交敏感值）
 ```
 
@@ -197,12 +197,12 @@ api → metrics
 
 `db` 包不能 import `api` 包，`auth` 包不能 import `db` 包，以此类推。
 
-**模块路径**：项目模块路径是 `github.com/Ixecd/web3-blitz`，import 内部包时用完整路径：
+**模块路径**：项目模块路径是 `github.com/Ixecd/blitz`，import 内部包时用完整路径：
 
 ```go
 import (
-    "github.com/Ixecd/web3-blitz/internal/db"
-    "github.com/Ixecd/web3-blitz/internal/auth"
+    "github.com/Ixecd/blitz/internal/db"
+    "github.com/Ixecd/blitz/internal/auth"
 )
 ```
 
@@ -212,7 +212,7 @@ import (
 
 | 改动类型 | 需要同步的地方 |
 |---|---|
-| 新增环境变量 | `deployments/web3-blitz/values.yaml` 的 `env` 字段 |
+| 新增环境变量 | `deployments/blitz/values.yaml` 的 `env` 字段 |
 | 改了服务端口 | `values.yaml` 的 `service.port` + liveness/readiness probe 端口 |
 | 加了新的 K8s 资源需要监控 | `configs/resources.yaml` 加一行，然后 `kp deploy` |
 | 改了数据库表结构 | 新增迁移文件，不要修改已有迁移文件 |

@@ -1,6 +1,6 @@
 # 认证授权指南
 
-> web3-blitz 的用户系统、JWT 认证和 refresh token 机制说明。
+> blitz 的用户系统、JWT 认证和 refresh token 机制说明。
 
 ---
 

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Ixecd/web3-blitz/internal/pkg/code"
+	"github.com/Ixecd/blitz/internal/pkg/code"
 )
 
 // Response 统一 HTTP 响应格式

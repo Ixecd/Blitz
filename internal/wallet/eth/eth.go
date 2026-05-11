@@ -9,10 +9,10 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/Ixecd/web3-blitz/internal/config"
-	"github.com/Ixecd/web3-blitz/internal/db"
-	"github.com/Ixecd/web3-blitz/internal/wallet/core"
-	"github.com/Ixecd/web3-blitz/internal/wallet/types"
+	"github.com/Ixecd/blitz/internal/config"
+	"github.com/Ixecd/blitz/internal/db"
+	"github.com/Ixecd/blitz/internal/wallet/core"
+	"github.com/Ixecd/blitz/internal/wallet/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )

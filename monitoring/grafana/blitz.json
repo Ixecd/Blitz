@@ -17,7 +17,7 @@
     { "type": "panel", "id": "gauge", "name": "Gauge", "version": "" }
   ],
   "annotations": { "list": [] },
-  "description": "web3-blitz 钱包充提币系统业务监控",
+  "description": "blitz 钱包充提币系统业务监控",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -363,7 +363,7 @@
   "time": { "from": "now-3h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "web3-blitz 钱包监控",
-  "uid": "web3-blitz-main",
+  "title": "blitz 钱包监控",
+  "uid": "blitz-main",
   "version": 1
 }

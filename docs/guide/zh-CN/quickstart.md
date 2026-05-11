@@ -1,6 +1,6 @@
 # 快速开始
 
-> 5 分钟内在本地跑起 web3-blitz。
+> 5 分钟内在本地跑起 blitz。
 
 ## 前置条件
 
@@ -9,14 +9,14 @@
 | Go | >= 1.24 | [golang.org](https://golang.org) |
 | Docker | latest | [docker.com](https://docker.com) |
 | bitcoin-cli | >= 28.0 | `brew install bitcoin` |
-| dtk | latest | `go install github.com/Ixecd/web3-blitz/cmd/dtk@latest` |
+| dtk | latest | `go install github.com/Ixecd/blitz/cmd/dtk@latest` |
 
 ---
 
 ## 第一步：克隆项目
 ```bash
-git clone https://github.com/Ixecd/web3-blitz.git
-cd web3-blitz
+git clone https://github.com/Ixecd/blitz.git
+cd blitz
 go mod tidy
 ```
 
@@ -109,7 +109,7 @@ dtk deploy
 
 验证：
 ```bash
-kubectl get pods -n web3-blitz
+kubectl get pods -n blitz
 # NAME                             READY   STATUS    
 # bitcoind-xxx                     1/1     Running   
 # geth-rpc-xxx                     1/1     Running   

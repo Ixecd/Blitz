@@ -1,0 +1,12 @@
+enabled: true
+
+image:
+  repository: qingchun22/kubepivot-controller
+  tag: v2.0.0
+  pullPolicy: Always
+
+global:
+  blitzName: blitz
+
+controller:
+  etcdEndpoints: "blitz-etcd:2379"

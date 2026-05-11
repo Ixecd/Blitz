@@ -1,4 +1,4 @@
-# web3-blitz 快照归档
+# blitz 快照归档
 
 命名格式：SNAPSHOT-{日期}-{里程碑}.md
 

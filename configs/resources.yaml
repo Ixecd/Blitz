@@ -10,14 +10,14 @@
 
 resources:
   - kind: Deployment
-    name: web3-blitz
+    name: blitz
     on-missing: auto-heal
     max-retry: 3
     fallback: rollback
 
   # 示例：监控 StatefulSet
   # - kind: StatefulSet
-  #   name: web3-blitz-postgres
+  #   name: blitz-postgres
   #   on-missing: auto-heal
   #   max-retry: 2
   #   fallback: rollback

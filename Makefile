@@ -8,12 +8,12 @@
 
 .PHONY := all
 all: tidy gen add-copyright format lint cover build
-# 注: web3-blitz 无前端，frontend.build 已移除
+# 注: blitz 无前端，frontend.build 已移除
 
 # ================================================================
 # Build options
 
-ROOT_PACKAGE := github.com/Ixecd/web3-blitz
+ROOT_PACKAGE := github.com/Ixecd/blitz
 
 VERSION_PACKAGE := github.com/Ixecd/component-base/pkg/version
 
@@ -81,7 +81,7 @@ build:
 ## install: Install services to GOPATH/bin.
 .PHONY: install
 install:
-	@echo "===========> Installing web3-blitz services"
+	@echo "===========> Installing blitz services"
 	@$(GO) install ./cmd/wallet-service
 	@$(GO) install ./cmd/chain-miner
 	@$(GO) install ./cmd/pos-sim

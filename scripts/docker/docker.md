@@ -20,7 +20,7 @@
  - `docker build`命令会读取`Dockerfile`的内容，并将Dockerfile的内容发送给Docker引擎，最终Docker引擎会解析Dockerfile中的每一条指令，构建出需要的镜像
  - `docker build`命令的格式为 `docker build [OPTIONS] PATH | URL | -`。 PATH、URL、- 指出了构建镜像的上下文（context），context中包含了构建镜像需要的Dockerfile文件， 可以通过 `-f, --file`选项，手动指定Dockerfile文件
  ```zsh
-    $ docker build -f Dockerfile -t github.com/Ixecd/web3-blitz:test .
+    $ docker build -f Dockerfile -t github.com/Ixecd/blitz:test .
  ```
 
 - Dockerfile 包含了镜像制作的完整操作流程，其他开发者可以通过 Dockerfile 了解并复现制作过程
@@ -34,17 +34,17 @@ LABEL maintainer="<qc@example.com>"
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN echo "Asia/Shanghai" > /etc/timezone
 
-WORKDIR /opt/web3-blitz
-COPY bin /opt/web3-blitz/bin/
+WORKDIR /opt/blitz
+COPY bin /opt/blitz/bin/
 
-ENTRYPOINT ["/opt/web3-blitz/bin/bin]
+ENTRYPOINT ["/opt/blitz/bin/bin]
 ```
 
 - 这里选择centos:centos8作为基础镜像，是因为centos:centos8镜像中包含了基本的排障工具，例如vi、cat、curl、mkdir、cp等工具。
 
 - 接着执行docker build命令来构建镜像
 ```zsh
-    $ docker build -f Dockerfile -t github.com/Ixecd/web3-blitz:test .
+    $ docker build -f Dockerfile -t github.com/Ixecd/blitz:test .
 ```
 
 ## 执行**docker build**后的构建流程为

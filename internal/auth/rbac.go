@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Ixecd/web3-blitz/internal/db"
+	"github.com/Ixecd/blitz/internal/db"
 )
 
 // HasPermission 检查用户是否拥有指定权限

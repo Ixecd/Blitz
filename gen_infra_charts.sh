@@ -1,19 +1,19 @@
 #!/bin/bash
-# 为 web3-blitz 生成 postgres 和 etcd 独立 chart
-# 用法: bash gen_infra_charts.sh ~/web3-blitz
+# 为 blitz 生成 postgres 和 etcd 独立 chart
+# 用法: bash gen_infra_charts.sh ~/blitz
 
-ROOT=${1:-~/web3-blitz}
-PROJECT=web3-blitz
+ROOT=${1:-~/blitz}
+PROJECT=blitz
 DEPLOY_DIR="$ROOT/deployments/$PROJECT"
 
 # ── postgres chart ─────────────────────────────────────────────────────────────
-PGDIR="$DEPLOY_DIR/web3-blitz-postgres"
+PGDIR="$DEPLOY_DIR/blitz-postgres"
 mkdir -p "$PGDIR/templates"
 
 cat > "$PGDIR/Chart.yaml" << 'EOF'
 apiVersion: v2
-name: web3-blitz-postgres
-description: PostgreSQL StatefulSet for web3-blitz
+name: blitz-postgres
+description: PostgreSQL StatefulSet for blitz
 type: application
 version: 0.1.0
 appVersion: "16-alpine"
@@ -28,20 +28,20 @@ cat > "$PGDIR/templates/statefulset.yaml" << 'EOF'
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: web3-blitz-postgres
+  name: blitz-postgres
   namespace: {{ .Release.Namespace }}
   labels:
-    app: web3-blitz-postgres
+    app: blitz-postgres
 spec:
-  serviceName: web3-blitz-postgres
+  serviceName: blitz-postgres
   replicas: 1
   selector:
     matchLabels:
-      app: web3-blitz-postgres
+      app: blitz-postgres
   template:
     metadata:
       labels:
-        app: web3-blitz-postgres
+        app: blitz-postgres
     spec:
       containers:
         - name: postgres
@@ -84,11 +84,11 @@ cat > "$PGDIR/templates/service.yaml" << 'EOF'
 apiVersion: v1
 kind: Service
 metadata:
-  name: web3-blitz-postgres
+  name: blitz-postgres
   namespace: {{ .Release.Namespace }}
 spec:
   selector:
-    app: web3-blitz-postgres
+    app: blitz-postgres
   ports:
     - port: 5432
       targetPort: 5432
@@ -97,13 +97,13 @@ EOF
 echo "✅ postgres chart: $PGDIR"
 
 # ── etcd chart ─────────────────────────────────────────────────────────────────
-ETCDDIR="$DEPLOY_DIR/web3-blitz-etcd"
+ETCDDIR="$DEPLOY_DIR/blitz-etcd"
 mkdir -p "$ETCDDIR/templates"
 
 cat > "$ETCDDIR/Chart.yaml" << 'EOF'
 apiVersion: v2
-name: web3-blitz-etcd
-description: etcd Deployment for web3-blitz
+name: blitz-etcd
+description: etcd Deployment for blitz
 type: application
 version: 0.1.0
 appVersion: "v3.5.14"
@@ -114,19 +114,19 @@ cat > "$ETCDDIR/templates/deployment.yaml" << 'EOF'
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web3-blitz-etcd
+  name: blitz-etcd
   namespace: {{ .Release.Namespace }}
   labels:
-    app: web3-blitz-etcd
+    app: blitz-etcd
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: web3-blitz-etcd
+      app: blitz-etcd
   template:
     metadata:
       labels:
-        app: web3-blitz-etcd
+        app: blitz-etcd
     spec:
       containers:
         - name: etcd
@@ -134,7 +134,7 @@ spec:
           command:
             - etcd
             - --listen-client-urls=http://0.0.0.0:2379
-            - --advertise-client-urls=http://web3-blitz-etcd:2379
+            - --advertise-client-urls=http://blitz-etcd:2379
             - --listen-peer-urls=http://0.0.0.0:2380
             - --initial-advertise-peer-urls=http://0.0.0.0:2380
             - --initial-cluster=default=http://0.0.0.0:2380
@@ -168,11 +168,11 @@ cat > "$ETCDDIR/templates/service.yaml" << 'EOF'
 apiVersion: v1
 kind: Service
 metadata:
-  name: web3-blitz-etcd
+  name: blitz-etcd
   namespace: {{ .Release.Namespace }}
 spec:
   selector:
-    app: web3-blitz-etcd
+    app: blitz-etcd
   ports:
     - name: client
       port: 2379
@@ -186,7 +186,7 @@ echo "✅ etcd chart: $ETCDDIR"
 
 echo ""
 echo "目录结构："
-find "$DEPLOY_DIR/web3-blitz-postgres" "$DEPLOY_DIR/web3-blitz-etcd" -type f | sort
+find "$DEPLOY_DIR/blitz-postgres" "$DEPLOY_DIR/blitz-etcd" -type f | sort
 
 echo ""
 echo "helm lint 验证："

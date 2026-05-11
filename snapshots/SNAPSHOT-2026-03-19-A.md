@@ -1,4 +1,4 @@
-# web3-blitz 项目快照
+# blitz 项目快照
 
 > 用途：新会话开始时直接把这个文件扔给 Claude，5秒对齐，继续工作。
 > 最后更新：2026-03-19
@@ -8,7 +8,7 @@
 ## 项目是什么
 
 Go + 云原生的交易所钱包充提币系统，目标是生产可用的完整交易所钱包基础设施。
-脚手架工具：`github.com/Ixecd/web3-blitz`（dtk），支持 1 行 init boilerplate + 1 键 AI-plan + Helm deploy。
+脚手架工具：`github.com/Ixecd/blitz`（dtk），支持 1 行 init boilerplate + 1 键 AI-plan + Helm deploy。
 
 ---
 

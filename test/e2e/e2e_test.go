@@ -12,7 +12,7 @@ import (
 
 const baseURL = "http://localhost:8080"
 
-func TestE2E_Web3Blitz(t *testing.T) {
+func TestE2E_Blitz(t *testing.T) {
 	resp, err := http.Get(baseURL + "/healthz")
 	require.NoError(t, err)
 	defer resp.Body.Close()

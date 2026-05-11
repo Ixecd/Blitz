@@ -1,0 +1,7 @@
+apiVersion: v2
+name: blitz-etcd
+description: etcd StatefulSet for blitz
+type: application
+version: 0.1.0
+appVersion: "v3.5.14"
+dependencies: []

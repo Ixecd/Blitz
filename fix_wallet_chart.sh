@@ -1,27 +1,27 @@
 #!/bin/bash
 # 修复 wallet-service chart 里的 service name
-# 用法: bash fix_wallet_chart.sh ~/web3-blitz
+# 用法: bash fix_wallet_chart.sh ~/blitz
 
-ROOT=${1:-~/web3-blitz}
-SVC_DIR="$ROOT/deployments/web3-blitz/wallet-service"
+ROOT=${1:-~/blitz}
+SVC_DIR="$ROOT/deployments/blitz/wallet-service"
 
 # 修 values.yaml
 sed -i '' \
-  's|postgres://blitz:blitz@postgres:|postgres://blitz:blitz@web3-blitz-postgres:|g' \
+  's|postgres://blitz:blitz@postgres:|postgres://blitz:blitz@blitz-postgres:|g' \
   "$SVC_DIR/values.yaml"
 sed -i '' \
-  's|postgres://user:pass@postgres:|postgres://blitz:blitz@web3-blitz-postgres:|g' \
+  's|postgres://user:pass@postgres:|postgres://blitz:blitz@blitz-postgres:|g' \
   "$SVC_DIR/values.yaml"
 sed -i '' \
-  's|etcd:2379|web3-blitz-etcd:2379|g' \
+  's|etcd:2379|blitz-etcd:2379|g' \
   "$SVC_DIR/values.yaml"
 
 # 修 deployment.yaml initContainers
 sed -i '' \
-  's|nc -z postgres 5432|nc -z web3-blitz-postgres 5432|g' \
+  's|nc -z postgres 5432|nc -z blitz-postgres 5432|g' \
   "$SVC_DIR/templates/deployment.yaml"
 sed -i '' \
-  's|nc -z etcd 2379|nc -z web3-blitz-etcd 2379|g' \
+  's|nc -z etcd 2379|nc -z blitz-etcd 2379|g' \
   "$SVC_DIR/templates/deployment.yaml"
 
 echo "✅ 修复完成，验证结果："

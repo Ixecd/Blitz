@@ -121,8 +121,8 @@ spec:
             weight: 100 # weight 字段值的范围是1-100。
       containers:
       - command: # 指定运行命令
-        - /opt/web3-blitz/bin/server # 运行参数
-        - --config=/etc/web3-blitz/server.yaml
+        - /opt/blitz/bin/server # 运行参数
+        - --config=/etc/blitz/server.yaml
         image: busybox:latest # 镜像名，遵守镜像命名规范
         imagePullPolicy: Always # 镜像拉取策略。IfNotPresent：优先使用本地镜像；Never：使用本地镜像，本地镜像不存在，则报错；Always：默认值，每次都重新拉取镜像
         # lifecycle: # kubernetes支持postStart和preStop事件。当一个容器启动后，Kubernetes将立即发送postStart事件；在容器被终结之前，Kubernetes将发送一个preStop事件
@@ -171,11 +171,11 @@ spec:
         terminationMessagePath: /dev/termination-log # 容器终止时消息保存路径
         terminationMessagePolicy: File # 仅从终止消息文件中检索终止消息
         volumeMounts: # 挂载日志卷
-        - mountPath: /etc/web3-blitz/server.yaml # 容器内挂载镜像路径
-          name: web3-blitz # 引用的卷名称
+        - mountPath: /etc/blitz/server.yaml # 容器内挂载镜像路径
+          name: blitz # 引用的卷名称
           subPath: server.yaml # 指定所引用的卷内的子路径，而不是其根路径。
-        - mountPath: /etc/web3-blitz/cert
-          name: web3-blitz-cert
+        - mountPath: /etc/blitz/cert
+          name: blitz-cert
       dnsPolicy: ClusterFirst
       restartPolicy: Always # 重启策略，Always、OnFailure、Never
       schedulerName: default-scheduler # 指定调度器的名字

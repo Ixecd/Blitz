@@ -1,0 +1,34 @@
+replicaCount: 2
+
+image:
+  repository: qingchun22/wallet-service-arm64
+  pullPolicy: IfNotPresent
+  tag: ""
+
+service:
+  type: ClusterIP
+  port: 2113
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+env:
+  - name: ETCD_ENDPOINTS
+    value: "blitz-etcd:2379"
+  - name: BTC_NETWORK
+    value: "regtest"
+  - name: SMTP_HOST
+    value: "smtp.qq.com"
+  - name: SMTP_PORT
+    value: "465"
+  - name: SMTP_USER
+    value: "2192629378@qq.com"
+  - name: SMTP_FROM
+    value: "2192629378@qq.com"
+  - name: FRONTEND_URL
+    value: "http://localhost:5173"
+bluegreen:
+  slot: ""
+  skipService: false

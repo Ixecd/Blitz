@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/Ixecd/web3-blitz/internal/config"
-	"github.com/Ixecd/web3-blitz/internal/metrics"
-	wallettypes "github.com/Ixecd/web3-blitz/internal/wallet/types"
+	"github.com/Ixecd/blitz/internal/config"
+	"github.com/Ixecd/blitz/internal/metrics"
+	wallettypes "github.com/Ixecd/blitz/internal/wallet/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 

@@ -463,7 +463,7 @@ export default function Login() {
             fontSize:'11px', color:'var(--color-text-faint)',
             letterSpacing:'0.08em', margin:0, textAlign:'center',
           }}>
-            web3-blitz wallet infrastructure
+            blitz wallet infrastructure
           </p>
         </div>
 

@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/Ixecd/web3-blitz/internal/config"
-	"github.com/Ixecd/web3-blitz/internal/db"
-	"github.com/Ixecd/web3-blitz/internal/metrics"
+	"github.com/Ixecd/blitz/internal/config"
+	"github.com/Ixecd/blitz/internal/db"
+	"github.com/Ixecd/blitz/internal/metrics"
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 

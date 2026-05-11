@@ -6,7 +6,7 @@
 
 ## 概述
 
-wallet-service 是 web3-blitz 的核心服务，负责：
+wallet-service 是 blitz 的核心服务，负责：
 
 - HD 钱包地址派生
 - 充值监控（Deposit Watcher）

@@ -52,8 +52,8 @@ bitcoin-cli -regtest -rpcwallet=blitz_wallet -generate 1
 
 编辑 `configs/project.env`：
 ```ini
-PROJECT_NAME=web3-blitz
-KUBE_NAMESPACE=web3-blitz
+PROJECT_NAME=blitz
+KUBE_NAMESPACE=blitz
 REGISTRY_PREFIX=<你的DockerHub用户名>
 ARCH=arm64        # 或 amd64
 VERSION=v0.1.1
@@ -81,10 +81,10 @@ dtk deploy
 ### 3. 验证
 ```bash
 # 查看 pod 状态
-kubectl get pods -n web3-blitz
+kubectl get pods -n blitz
 
 # 查看 wallet-service 日志
-kubectl logs -n web3-blitz deployment/wallet-service
+kubectl logs -n blitz deployment/wallet-service
 
 # 期望输出：
 # ✅ 数据库已连接
@@ -94,7 +94,7 @@ kubectl logs -n web3-blitz deployment/wallet-service
 
 ### 4. 访问服务
 ```bash
-kubectl port-forward -n web3-blitz svc/wallet-service 2113:2113
+kubectl port-forward -n blitz svc/wallet-service 2113:2113
 curl http://localhost:2113/metrics
 ```
 

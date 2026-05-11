@@ -15,7 +15,7 @@ import (
 func NewDB() (*sql.DB, error) {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
-		dsn = "postgres://user:pass@localhost:5432/web3-blitz?sslmode=disable"
+		dsn = "postgres://user:pass@localhost:5432/blitz?sslmode=disable"
 	}
 
 	database, err := sql.Open("pgx", dsn)

@@ -1,0 +1,28 @@
+{
+  "title": "blitz Dashboard",
+  "uid": "blitz",
+  "panels": [
+    {
+      "title": "HTTP 请求总数",
+      "type": "stat",
+      "targets": [{"expr": "sum(rate(blitz_http_request_total[5m]))", "legendFormat": "req/s"}]
+    },
+    {
+      "title": "HTTP 错误率",
+      "type": "timeseries",
+      "targets": [{"expr": "sum(rate(blitz_http_request_total{status=~\"5..\"}[5m]))", "legendFormat": "5xx/s"}]
+    },
+    {
+      "title": "P99 延迟",
+      "type": "timeseries",
+      "targets": [{"expr": "histogram_quantile(0.99, rate(blitz_http_request_duration_seconds_bucket[5m]))", "legendFormat": "P99"}]
+    },
+    {
+      "title": "业务错误",
+      "type": "timeseries",
+      "targets": [{"expr": "sum by(code) (rate(blitz_business_error_total[5m]))", "legendFormat": "{{code}}"}]
+    }
+  ],
+  "schemaVersion": 38,
+  "version": 1
+}

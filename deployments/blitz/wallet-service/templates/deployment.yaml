@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: wallet-service
+    version: {{ .Values.image.tag | default .Chart.AppVersion }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: wallet-service
+  template:
+    metadata:
+      labels:
+        app: wallet-service
+        version: {{ .Values.image.tag | default .Chart.AppVersion }}
+    spec:
+      serviceAccountName: {{ .Release.Name }}
+      initContainers:
+        - name: wait-postgres
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z blitz-postgres 5432; do echo waiting for postgres; sleep 2; done']
+        - name: wait-etcd
+          image: busybox:1.35
+          command: ['sh', '-c', 'until nc -z blitz-etcd 2379; do echo waiting for etcd; sleep 2; done']
+      containers:
+        - name: wallet-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: wallet-service-secret
+                  key: DATABASE_URL
+            - name: WALLET_HD_SEED
+              valueFrom:
+                secretKeyRef:
+                  name: wallet-service-secret
+                  key: WALLET_HD_SEED
+            - name: SMTP_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: wallet-service-secret
+                  key: SMTP_PASS
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: wallet-service-secret
+                  key: JWT_SECRET
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}

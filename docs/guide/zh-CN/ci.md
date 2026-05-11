@@ -1,6 +1,6 @@
 # GitHub Actions CI 流程文档
 
-> web3-blitz 的持续集成配置说明。
+> blitz 的持续集成配置说明。
 
 ---
 

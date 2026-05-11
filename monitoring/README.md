@@ -1,4 +1,4 @@
-# web3-blitz 监控告警
+# blitz 监控告警
 
 ## 目录结构
 
@@ -6,11 +6,11 @@
 monitoring/
 ├── prometheus/
 │   ├── prometheus.yml
-│   └── rules/web3-blitz.yml
+│   └── rules/blitz.yml
 ├── alertmanager/
 │   └── alertmanager.yml
 └── grafana/
-    ├── dashboards/web3-blitz.json
+    ├── dashboards/blitz.json
     └── provisioning/
         ├── dashboards/dashboard.yml
         └── datasources/prometheus.yml

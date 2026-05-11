@@ -1,7 +1,7 @@
 swagger: "2.0"
 info:
-  title: web3-blitz API
-  description: web3-blitz 服务 API 文档
+  title: blitz API
+  description: blitz 服务 API 文档
   version: "1.0.0"
 
 host: localhost:8080

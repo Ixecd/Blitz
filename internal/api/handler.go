@@ -3,11 +3,11 @@ package api
 import (
 	"database/sql"
 
-	"github.com/Ixecd/web3-blitz/internal/db"
-	"github.com/Ixecd/web3-blitz/internal/email"
-	"github.com/Ixecd/web3-blitz/internal/lock"
-	"github.com/Ixecd/web3-blitz/internal/wallet/btc"
-	"github.com/Ixecd/web3-blitz/internal/wallet/eth"
+	"github.com/Ixecd/blitz/internal/db"
+	"github.com/Ixecd/blitz/internal/email"
+	"github.com/Ixecd/blitz/internal/lock"
+	"github.com/Ixecd/blitz/internal/wallet/btc"
+	"github.com/Ixecd/blitz/internal/wallet/eth"
 )
 
 type Handler struct {

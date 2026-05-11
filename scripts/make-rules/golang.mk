@@ -52,7 +52,7 @@ ifeq (${BINS},)
 	$(error Could not determine BINS, set ROOT_DIR or run in source dir)
 endif
 
-EXCLUDE_TESTS=github.com/Ixecd/web3-blitz/test github.com/Ixecd/web3-blitz/pkg/log github.com/Ixecd/web3-blitz/third_party github.com/Ixecd/web3-blitz/internal/pkg/logger
+EXCLUDE_TESTS=github.com/Ixecd/blitz/test github.com/Ixecd/blitz/pkg/log github.com/Ixecd/blitz/third_party github.com/Ixecd/blitz/internal/pkg/logger
 
 .PHONY: go.build.verify
 go.build.verify:

@@ -9,7 +9,7 @@
 PROJECT_ROOT=$(dirname "${BASH_SOURCE[0]}")/../..
 
 # 读取项目配置（可选）
-CONFIG_FILE="${PROJECT_ROOT}/configs/web3-blitz.env"
+CONFIG_FILE="${PROJECT_ROOT}/configs/blitz.env"
 if [ -f "${CONFIG_FILE}" ]; then
   set -a
   # shellcheck disable=SC1090
@@ -17,7 +17,7 @@ if [ -f "${CONFIG_FILE}" ]; then
   set +a
 fi
 
-PROJECT_NAME=${PROJECT_NAME:-"web3-blitz"}
+PROJECT_NAME=${PROJECT_NAME:-"blitz"}
 
 # 生成文件存放目录
 LOCAL_OUTPUT_ROOT="${PROJECT_ROOT}/${OUT_DIR:-_output}"

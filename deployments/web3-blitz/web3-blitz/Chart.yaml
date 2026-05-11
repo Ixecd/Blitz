@@ -1,7 +1,0 @@
-apiVersion: v2
-name: web3-blitz
-description: web3-blitz business service
-type: application
-version: 0.1.0
-appVersion: "0.1.0"
-dependencies: []

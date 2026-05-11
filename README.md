@@ -1,4 +1,4 @@
-# web3-blitz ⚡
+# blitz ⚡
 
 > 基于 Go + K8s 的 Web3 充提币系统，支持 BTC/ETH 充值监控、HD 钱包派生、提币审核、RBAC 权限管理。
 
@@ -7,7 +7,7 @@
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    K8s Cluster                      │
-│  namespace: web3-blitz                              │
+│  namespace: blitz                              │
 │                                                     │
 │  ┌────────────┐  ┌──────────────┐  ┌─────────────┐  │
 │  │  bitcoind  │  │   geth-rpc   │  │   postgres  │  │
@@ -95,7 +95,7 @@ curl -X POST http://localhost:2113/api/v1/address \
 ## 🗂️ 项目结构
 
 ```
-web3-blitz/
+blitz/
 ├── cmd/
 │   └── wallet-service/         # 服务入口
 ├── internal/
@@ -105,7 +105,7 @@ web3-blitz/
 │   ├── email/                  # SMTP 邮件发送
 │   └── wallet/                 # HD 钱包、Watcher、BTC/ETH 实现
 ├── deployments/
-│   └── web3-blitz/             # Helm Chart（自包含，零外部依赖）
+│   └── blitz/             # Helm Chart（自包含，零外部依赖）
 │       └── templates/
 │           ├── postgres-statefulset.yaml
 │           ├── etcd-deployment.yaml
@@ -140,8 +140,8 @@ FRONTEND_URL=http://localhost:5173
 `configs/project.env`（K8s 部署）：
 
 ```ini
-PROJECT_NAME=web3-blitz
-KUBE_NAMESPACE=web3-blitz
+PROJECT_NAME=blitz
+KUBE_NAMESPACE=blitz
 REGISTRY_PREFIX=qingchun22
 ARCH=arm64
 VERSION=v0.1.4
