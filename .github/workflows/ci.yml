@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
           cache: true
 
       - name: Install migrate
@@ -54,7 +54,7 @@ jobs:
         run: go vet ./...
 
       - name: Test
-        run: go test ./...
+        run: go test ./... -race
         env:
           DATABASE_URL: postgres://blitz:blitz@localhost:5432/blitz?sslmode=disable&search_path=public
 
