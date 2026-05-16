@@ -58,17 +58,18 @@
 
 ---
 
-## 四、低危（排后）
+## 四、低危（已修 ✅）
 
-### 4.1 Refresh token rotate 不撤销旧 token
-多设备场景有隐患。
+### 4.1 Refresh token rotate 顺序修复 ✅
+- auth.go Refresh: 先创建新 token 再撤销旧 token，防 DB 写入失败导致用户被锁
 
-### 4.2 无审计日志
-提币操作缺少不可篡改的操作记录。
+### 4.2 审计日志 ✅
+- 新增 audit 包：JSON Lines 格式审计日志
+- 提币 submitted/completed/failed 三事件全程留痕
 
-### 4.3 ETH gas price 未设上限
-极端 gas 市场下可能超额扣费。
+### 4.3 ETH gas price 上限 ✅
+- eth/withdraw.go: maxGasPrice = 200 gwei，超限拒绝并提示稍后重试
 
 ---
 
-*修完一条勾一条，拍到板停下来。*
+*全部修完，FORGET 清空。*

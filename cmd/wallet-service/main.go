@@ -14,6 +14,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"github.com/Ixecd/blitz/internal/api"
+	"github.com/Ixecd/blitz/internal/audit"
 	"github.com/Ixecd/blitz/internal/config"
 	"github.com/Ixecd/blitz/internal/db"
 	"github.com/Ixecd/blitz/internal/email"
@@ -55,6 +56,16 @@ func main() {
 	}
 
 	queries := db.New(database)
+
+	// 审计日志
+	auditPath := os.Getenv("AUDIT_LOG_PATH")
+	if auditPath == "" {
+		auditPath = "data/audit.log"
+	}
+	if err := audit.Init(auditPath); err != nil {
+		slog.Warn("审计日志初始化失败，审计功能停用", "err", err)
+	}
+	defer audit.Close()
 
 	// etcd
 	etcdEndpoints := os.Getenv("ETCD_ENDPOINTS")

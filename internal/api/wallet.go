@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Ixecd/blitz/internal/audit"
 	"github.com/Ixecd/blitz/internal/auth"
 	"github.com/Ixecd/blitz/internal/code"
 	"github.com/Ixecd/blitz/internal/db"
@@ -315,6 +316,9 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	audit.WithdrawSubmitted(userID, string(req.Chain),
+		fmt.Sprintf("%.8f", req.Amount), req.ToAddress)
+
 	// 广播交易
 	var txID string
 	var fee float64
@@ -348,9 +352,13 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	if broadcastErr != nil {
 		metrics.WithdrawTotal.WithLabelValues(string(req.Chain), "failed").Inc()
+		audit.WithdrawFailed(userID, string(req.Chain),
+			fmt.Sprintf("%.8f", req.Amount), broadcastErr.Error())
 	} else {
 		metrics.WithdrawTotal.WithLabelValues(string(req.Chain), "completed").Inc()
 		metrics.WithdrawAmount.WithLabelValues(string(req.Chain)).Add(req.Amount)
+		audit.WithdrawCompleted(userID, string(req.Chain),
+			fmt.Sprintf("%.8f", req.Amount), txID)
 	}
 
 	OK(w, map[string]interface{}{

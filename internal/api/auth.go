@@ -166,8 +166,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = h.queries.RevokeRefreshToken(r.Context(), req.RefreshToken)
-
+	// 先创建新 token，再撤销旧 token
+	// 如果创建失败，旧 token 仍有效，用户不会被锁在外面
 	_, err = h.queries.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
 		UserID:    user.ID,
 		Token:     newRefreshToken,
@@ -177,6 +177,8 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 		Fail(w, code.ErrInternal)
 		return
 	}
+
+	_ = h.queries.RevokeRefreshToken(r.Context(), req.RefreshToken)
 
 	OK(w, map[string]interface{}{
 		"access_token":  accessToken,

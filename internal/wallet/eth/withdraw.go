@@ -39,6 +39,14 @@ func (w *ETHWallet) Withdraw(ctx context.Context, toAddress string, amount float
 		return WithdrawResult{}, fmt.Errorf("获取 gasPrice 失败: %w", err)
 	}
 
+	// gas price 上限 200 gwei，防止极端市场下超额扣费
+	const maxGasPrice = 200_000_000_000 // 200 gwei
+	if gasPrice.Cmp(big.NewInt(maxGasPrice)) > 0 {
+		return WithdrawResult{}, fmt.Errorf(
+			"当前 gas price 过高（%.0f gwei），超出上限 200 gwei，请稍后再试",
+			float64(gasPrice.Int64())/1e9)
+	}
+
 	chainID, err := w.rpcHolder.Get().ChainID(ctx)
 	if err != nil {
 		return WithdrawResult{}, fmt.Errorf("获取 chainID 失败: %w", err)
