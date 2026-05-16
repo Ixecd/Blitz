@@ -85,4 +85,20 @@
 
 ---
 
+## 六、Sealed Secrets 部署加密（新增 ✅）
+
+### kp secret seal 已接入 ✅
+- 6 个密钥（JWT_SECRET / DATABASE_URL / SMTP_USER / SMTP_PASS / ETH_HOT_WALLET_KEY）全部 kubeseal 加密
+- 输出 configs/secrets/blitz-sealed.yaml，安全提交 Git
+- 部署到集群后 sealed-secrets controller 自动解密为 K8s Secret → Pod env
+
+### 密钥安全双层 ✅
+```
+开发机  encrypt-seed → AES-256-GCM 文件
+CI/Git  kp secret seal → SealedSecret
+集群    kubeseal 解封 → K8s Secret → Pod 挂载
+```
+
+---
+
 *全部修完，FORGET 清空。*

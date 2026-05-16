@@ -20,3 +20,11 @@ benchmark/results/*
 !benchmark/results/.gitkeep
 
 infra1.etcd/
+
+# Secrets — 加密种子 + 测试证书不进仓库
+configs/secrets/hd-seed.enc
+configs/secrets/*-cert.pem
+configs/secrets/*-test.key
+
+# Sealed Secret 安全加密后可以提交
+# configs/secrets/blitz-sealed.yaml — 可以 commit
