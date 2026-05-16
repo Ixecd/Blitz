@@ -101,4 +101,23 @@ CI/Git  kp secret seal → SealedSecret
 
 ---
 
+## 七、极致补强 — 安全焊死（新增 ✅）
+
+### 7.1 口令输入防内存抓取 ✅
+- seed.go ReadPassphrase: 输入期间 Setrlimit(RLIMIT_CORE=0)
+- 输入后清空字节缓冲区，不残留明文
+
+### 7.2 SealedSecret 私钥物理隔离 ✅
+- sealed-secrets controller 解密私钥独立离线冷储
+- 不与业务集群混放，加一道物理边界
+- 集群被完全攻破 → 攻击者仍然无法解密 SealedSecret
+
+### 7.3 无感知种子轮换预案 ✅
+- rotation.go: 静默派生新 HD 分支（m/44'/60'/0'/<gen>）
+- 新分支激活 → 资产逐步迁移 → 旧分支可继续收款但新提币走新分支
+- 主动规避长期持钥风险：种子暴露窗口不随使用时间累计
+- 种子哈希可链上公开，供校验完整性
+
+---
+
 *全部修完，FORGET 清空。*

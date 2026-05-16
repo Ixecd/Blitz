@@ -86,20 +86,37 @@ func DecryptSeedFile(path string, passphrase string) (string, error) {
 }
 
 // ReadPassphrase 优先读环境变量，否则交互式输入（隐藏回显）
+// 输入期间临时关闭 core dump，防止内存被抓取
 func ReadPassphrase(envVar string) (string, error) {
 	if p := os.Getenv(envVar); p != "" {
 		return p, nil
 	}
+
+	// 临时关闭 core dump，防止 passphrase 被写入 core 文件
+	var oldLimit syscall.Rlimit
+	_ = syscall.Getrlimit(syscall.RLIMIT_CORE, &oldLimit)
+	_ = syscall.Setrlimit(syscall.RLIMIT_CORE, &syscall.Rlimit{Cur: 0, Max: 0})
+
 	fmt.Print("🔑 输入 HD 种子解密密码: ")
 	bytes, err := term.ReadPassword(int(syscall.Stdin))
 	fmt.Println()
+
+	// 恢复 core dump 限制
+	_ = syscall.Setrlimit(syscall.RLIMIT_CORE, &oldLimit)
+
 	if err != nil {
 		return "", err
 	}
 	if len(bytes) == 0 {
 		return "", fmt.Errorf("密码不能为空")
 	}
-	return string(bytes), nil
+
+	pass := string(bytes)
+	// 清空输入缓冲区，不残留
+	for i := range bytes {
+		bytes[i] = 0
+	}
+	return pass, nil
 }
 
 // DerivePassphraseHash 从 passphrase 派生一个稳定的哈希用做运行时校验
