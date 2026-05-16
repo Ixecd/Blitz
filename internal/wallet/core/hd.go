@@ -60,22 +60,18 @@ func derivePathFromMaster(master *bip32.Key, path string) (*bip32.Key, error) {
 	return key, nil
 }
 
-func parsePath(path string) []uint32 {
+func parsePath(p string) []uint32 {
 	var segments []uint32
-	path = path
-	// 简单解析 m/44'/0'/0'/0/5 格式
-	// 去掉前缀 "m/" 后按 "/" 分割
-	rest := path
-	if len(rest) > 1 && rest[0:2] == "m/" {
-		rest = rest[2:]
+	if len(p) > 1 && p[0:2] == "m/" {
+		p = p[2:]
 	}
-	if rest == "" {
+	if p == "" {
 		return segments
 	}
 
 	var current uint32
-	for i := 0; i < len(rest); i++ {
-		c := rest[i]
+	for i := 0; i < len(p); i++ {
+		c := p[i]
 		if c >= '0' && c <= '9' {
 			current = current*10 + uint32(c-'0')
 		} else if c == '\'' {
