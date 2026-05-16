@@ -13,6 +13,7 @@ import (
 	"github.com/Ixecd/blitz/internal/db"
 	"github.com/Ixecd/blitz/internal/metrics"
 	"github.com/Ixecd/blitz/internal/wallet/types"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 func (h *Handler) GenerateAddress(w http.ResponseWriter, r *http.Request) {
@@ -21,27 +22,30 @@ func (h *Handler) GenerateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims := auth.GetClaims(r)
+	if claims == nil {
+		Fail(w, code.ErrUnauthorized)
+		return
+	}
+
 	var req struct {
-		UserID string      `json:"user_id"`
-		Chain  types.Chain `json:"chain"`
+		Chain types.Chain `json:"chain"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		Fail(w, code.ErrInvalidArg)
 		return
 	}
-	if req.UserID == "" {
-		FailMsg(w, code.ErrInvalidArg, "user_id 不能为空")
-		return
-	}
+
+	userID := fmt.Sprintf("%d", claims.UserID)
 
 	var resp types.AddressResponse
 	var genErr error
 
 	switch req.Chain {
 	case types.ChainBTC:
-		resp, genErr = h.btcWallet.GenerateDepositAddress(r.Context(), req.UserID, req.Chain)
+		resp, genErr = h.btcWallet.GenerateDepositAddress(r.Context(), userID, req.Chain)
 	case types.ChainETH:
-		resp, genErr = h.ethWallet.GenerateDepositAddress(r.Context(), req.UserID, req.Chain)
+		resp, genErr = h.ethWallet.GenerateDepositAddress(r.Context(), userID, req.Chain)
 	default:
 		Fail(w, code.ErrWalletChainNotSupported)
 		return
@@ -83,7 +87,7 @@ func (h *Handler) GetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		FailMsg(w, code.ErrInternal, err.Error())
+		FailInternal(w, err)
 		return
 	}
 
@@ -96,15 +100,16 @@ func (h *Handler) ListDeposits(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		FailMsg(w, code.ErrInvalidArg, "缺少 user_id 参数")
+	claims := auth.GetClaims(r)
+	if claims == nil {
+		Fail(w, code.ErrUnauthorized)
 		return
 	}
+	userID := fmt.Sprintf("%d", claims.UserID)
 
 	deposits, err := h.queries.ListDepositsByUserID(r.Context(), userID)
 	if err != nil {
-		FailMsg(w, code.ErrInternal, err.Error())
+		FailInternal(w, err)
 		return
 	}
 
@@ -117,20 +122,26 @@ func (h *Handler) GetTotalBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.URL.Query().Get("user_id")
-	chainStr := r.URL.Query().Get("chain")
-
-	if userID == "" || chainStr == "" {
-		FailMsg(w, code.ErrInvalidArg, "缺少 user_id 或 chain 参数")
+	claims := auth.GetClaims(r)
+	if claims == nil {
+		Fail(w, code.ErrUnauthorized)
 		return
 	}
+
+	chainStr := r.URL.Query().Get("chain")
+	if chainStr == "" {
+		FailMsg(w, code.ErrInvalidArg, "缺少 chain 参数")
+		return
+	}
+
+	userID := fmt.Sprintf("%d", claims.UserID)
 
 	total, err := h.queries.GetTotalDepositByUserIDAndChain(r.Context(), db.GetTotalDepositByUserIDAndChainParams{
 		UserID: userID,
 		Chain:  chainStr,
 	})
 	if err != nil {
-		FailMsg(w, code.ErrInternal, err.Error())
+		FailInternal(w, err)
 		return
 	}
 
@@ -155,7 +166,6 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		UserID    string      `json:"user_id"`
 		ToAddress string      `json:"to_address"`
 		Amount    float64     `json:"amount"`
 		Chain     types.Chain `json:"chain"`
@@ -164,15 +174,44 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 		Fail(w, code.ErrInvalidArg)
 		return
 	}
-	if req.UserID == "" || req.ToAddress == "" || req.Amount <= 0 {
-		FailMsg(w, code.ErrInvalidArg, "user_id / to_address / amount 不能为空或非正数")
+	if req.ToAddress == "" || req.Amount <= 0 {
+		FailMsg(w, code.ErrInvalidArg, "to_address / amount 不能为空或非正数")
+		return
+	}
+	// 目标地址合法性校验
+	if req.Chain == types.ChainETH && !common.IsHexAddress(req.ToAddress) {
+		FailMsg(w, code.ErrInvalidArg, "ETH 地址格式不合法")
 		return
 	}
 
 	ctx := r.Context()
+	claims := auth.GetClaims(r)
+	if claims == nil {
+		Fail(w, code.ErrUnauthorized)
+		return
+	}
+	userID := fmt.Sprintf("%d", claims.UserID)
+
+	// 单笔提币上限（BTC）
+	const maxSingleBTC = 1.0
+	const maxSingleETH = 10.0
+	switch req.Chain {
+	case types.ChainBTC:
+		if req.Amount > maxSingleBTC {
+			FailMsg(w, code.ErrWalletInsufficientBalance,
+				fmt.Sprintf("单笔提币上限 %.1f BTC，本次 %.8f", maxSingleBTC, req.Amount))
+			return
+		}
+	case types.ChainETH:
+		if req.Amount > maxSingleETH {
+			FailMsg(w, code.ErrWalletInsufficientBalance,
+				fmt.Sprintf("单笔提币上限 %.1f ETH，本次 %.8f", maxSingleETH, req.Amount))
+			return
+		}
+	}
 
 	// 分布式锁，防止重复提币
-	lockKey := fmt.Sprintf("withdraw:%s:%s", req.UserID, req.Chain)
+	lockKey := fmt.Sprintf("withdraw:%s:%s", userID, req.Chain)
 	l, err := h.locker.Acquire(ctx, lockKey)
 	if err != nil {
 		metrics.LockAcquireFailTotal.WithLabelValues(lockKey).Inc()
@@ -202,20 +241,20 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	// 余额校验
 	rawDeposit, err := h.queries.GetTotalDepositByUserIDAndChain(ctx, db.GetTotalDepositByUserIDAndChainParams{
-		UserID: req.UserID,
+		UserID: userID,
 		Chain:  string(req.Chain),
 	})
 	if err != nil {
-		FailMsg(w, code.ErrInternal, "查询充值余额失败: "+err.Error())
+		FailInternal(w, err)
 		return
 	}
 
 	rawWithdrawal, err := h.queries.GetTotalWithdrawalByUserIDAndChain(ctx, db.GetTotalWithdrawalByUserIDAndChainParams{
-		UserID: req.UserID,
+		UserID: userID,
 		Chain:  string(req.Chain),
 	})
 	if err != nil {
-		FailMsg(w, code.ErrInternal, "查询提币余额失败: "+err.Error())
+		FailInternal(w, err)
 		return
 	}
 
@@ -227,30 +266,24 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 限额校验
-	claims := auth.GetClaims(r)
-	if claims == nil {
-		Fail(w, code.ErrUnauthorized)
-		return
-	}
-
 	userLevel, err := h.queries.GetUserLevel(ctx, claims.UserID)
 	if err != nil {
-		FailMsg(w, code.ErrInternal, "查询用户等级失败: "+err.Error())
+		FailInternal(w, err)
 		return
 	}
 
 	limit, err := h.queries.GetWithdrawalLimit(ctx, int32(userLevel))
 	if err != nil {
-		FailMsg(w, code.ErrInternal, "查询提币限额失败: "+err.Error())
+		FailInternal(w, err)
 		return
 	}
 
 	rawUsed, err := h.queries.GetLast24hWithdrawalByUserAndChain(ctx, db.GetLast24hWithdrawalByUserAndChainParams{
-		UserID: req.UserID,
+		UserID: userID,
 		Chain:  string(req.Chain),
 	})
 	if err != nil {
-		FailMsg(w, code.ErrInternal, "查询提币额度失败: "+err.Error())
+		FailInternal(w, err)
 		return
 	}
 
@@ -272,13 +305,13 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 
 	// 写入 pending 记录
 	record, err := h.queries.CreateWithdrawal(ctx, db.CreateWithdrawalParams{
-		UserID:  req.UserID,
+		UserID:  userID,
 		Address: req.ToAddress,
 		Amount:  fmt.Sprintf("%.8f", req.Amount),
 		Chain:   string(req.Chain),
 	})
 	if err != nil {
-		FailMsg(w, code.ErrInternal, "创建提币记录失败: "+err.Error())
+		FailInternal(w, err)
 		return
 	}
 
@@ -323,7 +356,7 @@ func (h *Handler) Withdraw(w http.ResponseWriter, r *http.Request) {
 	OK(w, map[string]interface{}{
 		"id":         record.ID,
 		"tx_id":      txID,
-		"user_id":    req.UserID,
+		"user_id":    userID,
 		"to_address": req.ToAddress,
 		"amount":     req.Amount,
 		"fee":        fee,
@@ -338,15 +371,16 @@ func (h *Handler) ListWithdrawals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := r.URL.Query().Get("user_id")
-	if userID == "" {
-		FailMsg(w, code.ErrInvalidArg, "缺少 user_id 参数")
+	claims := auth.GetClaims(r)
+	if claims == nil {
+		Fail(w, code.ErrUnauthorized)
 		return
 	}
+	userID := fmt.Sprintf("%d", claims.UserID)
 
 	withdrawals, err := h.queries.ListWithdrawalsByUserID(r.Context(), userID)
 	if err != nil {
-		FailMsg(w, code.ErrInternal, err.Error())
+		FailInternal(w, err)
 		return
 	}
 

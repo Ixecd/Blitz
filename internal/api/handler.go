@@ -11,13 +11,15 @@ import (
 )
 
 type Handler struct {
-	btcWallet *btc.BTCWallet
-	ethWallet *eth.ETHWallet
-	queries   *db.Queries
-	db        *sql.DB
-	mailer    *email.Mailer
-	locker    *lock.DistributedLock
-	jwtSecret string
+	btcWallet   *btc.BTCWallet
+	ethWallet   *eth.ETHWallet
+	queries     *db.Queries
+	db          *sql.DB
+	mailer      *email.Mailer
+	locker      *lock.DistributedLock
+	jwtSecret   string
+	generalRL   *RateLimiter // 全局限速
+	authRL      *RateLimiter // 登录/注册限速（更严）
 }
 
 func NewHandler(btcWallet *btc.BTCWallet, ethWallet *eth.ETHWallet, queries *db.Queries, db *sql.DB, locker *lock.DistributedLock, jwtSecret string, mailer *email.Mailer) *Handler {
@@ -29,5 +31,7 @@ func NewHandler(btcWallet *btc.BTCWallet, ethWallet *eth.ETHWallet, queries *db.
 		locker:    locker,
 		jwtSecret: jwtSecret,
 		mailer:    mailer,
+		generalRL: NewRateLimiter(2, 100),   // 2 token/s = 120 req/min
+		authRL:    NewRateLimiter(0.1, 5),   // 0.1 token/s = 6 req/min
 	}
 }

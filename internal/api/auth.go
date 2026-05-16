@@ -35,6 +35,10 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		FailMsg(w, code.ErrInvalidArg, "密码长度不能少于 8 位")
 		return
 	}
+	if !hasLetterAndDigit(req.Password) {
+		FailMsg(w, code.ErrInvalidArg, "密码需要同时包含字母和数字")
+		return
+	}
 
 	hashed, err := auth.HashPassword(req.Password)
 	if err != nil {
@@ -82,11 +86,14 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.queries.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
+		// 固定延时防暴力枚举（邮箱不存在和密码错误同一延时）
+		time.Sleep(500 * time.Millisecond)
 		Fail(w, code.ErrUserPasswordWrong)
 		return
 	}
 
 	if !auth.CheckPassword(req.Password, user.Password) {
+		time.Sleep(500 * time.Millisecond)
 		Fail(w, code.ErrUserPasswordWrong)
 		return
 	}
@@ -288,8 +295,12 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 		Fail(w, code.ErrInvalidArg)
 		return
 	}
-	if req.Token == "" || len(req.Password) < 8 {
-		FailMsg(w, code.ErrInvalidArg, "token 不能为空，密码长度不能少于 8 位")
+	if req.Token == "" || req.Password == "" {
+		FailMsg(w, code.ErrInvalidArg, "token 和 password 不能为空")
+		return
+	}
+	if len(req.Password) < 8 || !hasLetterAndDigit(req.Password) {
+		FailMsg(w, code.ErrInvalidArg, "密码长度不少于 8 位，需同时包含字母和数字")
 		return
 	}
 
@@ -323,4 +334,18 @@ func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	_ = h.queries.RevokeAllUserRefreshTokens(r.Context(), rt.UserID)
 
 	OK(w, map[string]string{"message": "密码已重置，请重新登录"})
+}
+
+// hasLetterAndDigit 检查字符串是否同时包含字母和数字
+func hasLetterAndDigit(s string) bool {
+	var hasLetter, hasDigit bool
+	for _, c := range s {
+		if c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' {
+			hasLetter = true
+		}
+		if c >= '0' && c <= '9' {
+			hasDigit = true
+		}
+	}
+	return hasLetter && hasDigit
 }

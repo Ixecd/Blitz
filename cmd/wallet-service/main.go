@@ -124,8 +124,12 @@ func main() {
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "dev-secret-change-in-production"
-		slog.Warn("使用测试 JWT secret，生产环境请务必设置 JWT_SECRET 环境变量")
+		slog.Error("JWT_SECRET 环境变量未设置，服务拒绝启动")
+		os.Exit(1)
+	}
+	if jwtSecret == "dev-secret-change-in-production" || len(jwtSecret) < 32 {
+		slog.Error("JWT_SECRET 不安全（太短或为已知默认值），服务拒绝启动")
+		os.Exit(1)
 	}
 
 	mailer := email.NewMailer()
@@ -190,7 +194,7 @@ func main() {
 	if port == "" {
 		port = "2113"
 	}
-	srv := &http.Server{Addr: ":" + port, Handler: mux}
+	srv := &http.Server{Addr: ":" + port, Handler: api.SecurityHeadersMiddleware(mux)}
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
