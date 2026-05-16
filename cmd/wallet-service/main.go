@@ -41,12 +41,23 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	metrics.Init()
 
-	// 密钥体系，其他所有钱包操作的根基
-	hdWallet, err := core.NewHDWallet()
+	// HD 密钥体系 — 从加密文件解密，不用 env 明文种子
+	seedFile := os.Getenv("SEED_FILE")
+	if seedFile == "" {
+		seedFile = "configs/secrets/hd-seed.enc"
+	}
+	passphrase, err := core.ReadPassphrase("SEED_PASSPHRASE")
+	if err != nil {
+		slog.Error("读取种子解密密码失败", "err", err)
+		os.Exit(1)
+	}
+	hdWallet, err := core.NewHDWalletFromEncrypted(seedFile, passphrase)
 	if err != nil {
 		slog.Error("HDWallet 初始化失败", "err", err)
 		os.Exit(1)
 	}
+	// 立即清空 passphrase 不再使用
+	passphrase = ""
 
 	// 持久层
 	database, err := db.NewDB()

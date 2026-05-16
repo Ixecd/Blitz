@@ -72,4 +72,17 @@
 
 ---
 
+## 五、HD 种子硬加密（新增 ✅）
+
+### 明文种子退役 ✅
+- WALLET_HD_SEED 环境变量不再使用
+- 改为 AES-256-GCM 加密文件 + argon2id 密钥派生
+- 密码通过交互输入或 SEED_PASSPHRASE 环境变量提供
+
+### 加密工具 ✅
+- 新增 cmd/encrypt-seed: 种子文件加密生成
+- encrypt-seed <种子hex> <输出路径> → 密码提示 → 0600 权限输出
+
+---
+
 *全部修完，FORGET 清空。*

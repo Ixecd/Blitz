@@ -3,10 +3,7 @@ package core
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/tyler-smith/go-bip32"
 )
@@ -15,18 +12,12 @@ type HDWallet struct {
 	MasterKey *bip32.Key
 }
 
-// NewHDWallet 从环境变量读取种子（推荐 hex 格式）
-func NewHDWallet() (*HDWallet, error) {
-	seedHex := os.Getenv("WALLET_HD_SEED")
-	if seedHex == "" {
-		// 合法的 hex 测试种子（32字节）
-		seedHex = "746573742d736565642d666f722d6465762d6f6e6c792d3132333435363738393061626364656631323334353637383930616263646566"
-		log.Println("⚠️  使用测试 seed（生产环境请务必设置 WALLET_HD_SEED 环境变量）")
-	}
-
+// NewHDWallet 从加密的种子文件解密后初始化 HD 钱包
+// seedFile 解密用 DecryptSeedFile，passphrase 从 ReadPassphrase 获取
+func NewHDWallet(seedHex string) (*HDWallet, error) {
 	seed, err := hex.DecodeString(seedHex)
 	if err != nil {
-		return nil, fmt.Errorf("WALLET_HD_SEED 必须是有效的 hex 字符串: %w", err)
+		return nil, fmt.Errorf("seed 必须是有效的 hex 字符串: %w", err)
 	}
 
 	masterKey, err := bip32.NewMasterKey(seed)
@@ -37,24 +28,63 @@ func NewHDWallet() (*HDWallet, error) {
 	return &HDWallet{MasterKey: masterKey}, nil
 }
 
+// NewHDWalletFromEncrypted 从加密种子文件和 passphrase 初始化
+func NewHDWalletFromEncrypted(seedFile, passphrase string) (*HDWallet, error) {
+	if _, err := os.Stat(seedFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("加密种子文件 %s 不存在，请先用 encrypt-seed 工具创建", seedFile)
+	}
+
+	seedHex, err := DecryptSeedFile(seedFile, passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewHDWallet(seedHex)
+}
+
 // DerivePath 支持 BIP44 路径字符串（如 m/44'/0'/0'/0/5）
 func (w *HDWallet) DerivePath(path string) (*bip32.Key, error) {
-	segments := strings.Split(strings.TrimPrefix(path, "m/"), "/")
-	key := w.MasterKey
+	return derivePathFromMaster(w.MasterKey, path)
+}
 
+func derivePathFromMaster(master *bip32.Key, path string) (*bip32.Key, error) {
+	segments := parsePath(path)
+	key := master
 	for _, seg := range segments {
-		indexStr := strings.TrimSuffix(seg, "'")
-		index, err := strconv.ParseUint(indexStr, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("invalid path segment: %s", seg)
-		}
-
-		child, err := key.NewChildKey(uint32(index))
+		child, err := key.NewChildKey(seg)
 		if err != nil {
 			return nil, err
 		}
 		key = child
 	}
-
 	return key, nil
+}
+
+func parsePath(path string) []uint32 {
+	var segments []uint32
+	path = path
+	// 简单解析 m/44'/0'/0'/0/5 格式
+	// 去掉前缀 "m/" 后按 "/" 分割
+	rest := path
+	if len(rest) > 1 && rest[0:2] == "m/" {
+		rest = rest[2:]
+	}
+	if rest == "" {
+		return segments
+	}
+
+	var current uint32
+	for i := 0; i < len(rest); i++ {
+		c := rest[i]
+		if c >= '0' && c <= '9' {
+			current = current*10 + uint32(c-'0')
+		} else if c == '\'' {
+			current |= 0x80000000 // hardened
+		} else if c == '/' {
+			segments = append(segments, current)
+			current = 0
+		}
+	}
+	segments = append(segments, current)
+	return segments
 }
